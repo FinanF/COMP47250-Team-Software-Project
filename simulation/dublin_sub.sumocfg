@@ -1,0 +1,11 @@
+<configuration>
+  <input>
+    <net-file value="dublin_sub.net.xml"/>
+    <route-files value="routes.xml"/>
+  </input>
+  <time>
+    <begin value="0"/>
+    <end value="3600"/>
+    <step-length value="0.5"/>
+  </time>
+</configuration>
