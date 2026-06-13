@@ -15,6 +15,9 @@ EMIT_EVERY_N_STEPS = 10   # emit every 10 steps = every 5 sim-seconds at 0.5s st
 MAX_SIM_TIME = 3600.0     # 1 hour of simulation time
 STEP_LENGTH = 0.5         # must match <step-length> in .sumocfg
 
+pending_changes: dict = {}
+_last_green_time: dict = {}
+
 def parse_junction_coordinates(net_xml_path: str) -> dict:
 
     coords = {}
@@ -79,6 +82,7 @@ async def seed_junction_table(db_queue: asyncio.Queue, net_xml_path: str) -> lis
 
 
 def get_junction_state(tls_id: str, sim_time: float) -> dict:
+    global _last_green_time
 
     phase = traci.trafficlight.getPhase(tls_id)
     phase_duration = traci.trafficlight.getPhaseDuration(tls_id)
@@ -153,6 +157,7 @@ def get_junction_state(tls_id: str, sim_time: float) -> dict:
 
 
 def apply_pending_changes():
+    global pending_changes
     if not pending_changes:
         return
 
@@ -203,7 +208,6 @@ async def sumo_worker(
     try:
         while (
             not shutdown_event.is_set()
-            and traci.simulation.getMinExpectedNumber() > 0
             and traci.simulation.getTime() < MAX_SIM_TIME
         ):
             # Apply any operator-approved signal changes before stepping
@@ -300,8 +304,8 @@ async def _standalone_test():
             print(json.dumps(state, indent=2))
             frames_received += 1
 
-            # Stop after 5 frames for quick local testing
-            if frames_received >= 5:
+            # Stop after 20 frames for quick local testing
+            if frames_received >= 100:
                 shutdown_event.set()
                 break
 
