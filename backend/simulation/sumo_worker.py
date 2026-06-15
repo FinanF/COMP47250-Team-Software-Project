@@ -180,6 +180,9 @@ async def sumo_worker(
     shutdown_event: asyncio.Event
 ):
     print(f"[SIM] Starting SUMO — config: {SUMO_CONFIG}", file=sys.stderr)
+    print(f"[SIM] SUMO_HOME: {os.environ.get('SUMO_HOME', 'NOT SET')}", file=sys.stderr)
+    print(f"[SIM] Config exists: {os.path.exists(SUMO_CONFIG)}", file=sys.stderr)
+    print(f"[SIM] NET_XML exists: {os.path.exists(NET_XML)}", file=sys.stderr)
 
     try:
         traci.start([
@@ -217,7 +220,7 @@ async def sumo_worker(
             traci.simulationStep()
             step += 1
 
-            # Yield control to the event loop so FastAPI stays responsive
+            # Yield control to the event loop so fastapi stays responsive
             await asyncio.sleep(0)
 
             if step % EMIT_EVERY_N_STEPS != 0:
