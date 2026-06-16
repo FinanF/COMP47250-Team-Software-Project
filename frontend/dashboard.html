@@ -533,14 +533,15 @@
             });
             hasFittedMap = true;
         }
+        //REMINDER: I think this if is stopping the panel from properly updating and just showing the first one
 
-        if (junctions.length > 0) {
-            const firstJunction = junctions[0];
-            updateStatusPanel(
-                firstJunction,
-                calculateJunctionStats(firstJunction)
-            );
-        }
+        // if (junctions.length > 0) {
+        //     const firstJunction = junctions[0];
+        //     updateStatusPanel(
+        //         firstJunction,
+        //         calculateJunctionStats(firstJunction)
+        //     );
+        // }
     }
 
     function connectWebSocket() {
