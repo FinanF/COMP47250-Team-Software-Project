@@ -341,6 +341,7 @@
     let hasFittedMap = false;
     let socket = null;
     let reconnectTimer = null;
+    let selectedJunctionId = null;
 
     function updateClock() {
         const clockEl = document.getElementById("simulation-clock");
@@ -510,6 +511,7 @@
                 }).addTo(map);
 
                 marker.on("click", () => {
+                    selectedJunctionId = junction.id;
                     updateStatusPanel(junction, calculateJunctionStats(junction));
                 });
 
@@ -519,6 +521,7 @@
                 marker.setStyle({ fillColor: colour });
                 marker.off("click");
                 marker.on("click", () => {
+                    selectedJunctionId = junction.id;
                     updateStatusPanel(junction, calculateJunctionStats(junction));
                 });
             }
@@ -533,15 +536,18 @@
             });
             hasFittedMap = true;
         }
-        //REMINDER: I think this if is stopping the panel from properly updating and just showing the first one
 
-        // if (junctions.length > 0) {
-        //     const firstJunction = junctions[0];
-        //     updateStatusPanel(
-        //         firstJunction,
-        //         calculateJunctionStats(firstJunction)
-        //     );
-        // }
+        if (junctions.length > 0) {
+            const selectedJunction = junctions.find(
+                (junction) => junction.id === selectedJunctionId
+            ) || junctions[0];
+
+            selectedJunctionId = selectedJunction.id;
+            updateStatusPanel(
+                selectedJunction,
+                calculateJunctionStats(firstJunction)
+            );
+        }
     }
 
     function connectWebSocket() {
