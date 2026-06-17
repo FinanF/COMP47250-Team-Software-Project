@@ -3,9 +3,9 @@ import websockets
 import json
 
 
-async def main():
-    uri = "ws://127.0.0.1:8000/ws"
-    async with websockets.connect(uri) as ws:
+async def traffic():
+    traffic_light_uri = "ws://127.0.0.1:8000/traffic-lights"
+    async with websockets.connect(traffic_light_uri) as ws:
         print("✓ Connected to WebSocket")
         message_count = 0
         try:
@@ -14,9 +14,8 @@ async def main():
                 data = json.loads(msg)
                 message_count += 1
                 print(data)
-
                 # Print key info from each message
-                print(f"\n📨 Message #{message_count}")
+                print(f"\n📨 Message(Junction) #{message_count}")
                 print(f"   Timestamp: {data.get('timestamp')}s")
                 print(f"   Junctions: {data.get('junction_count')}")
                 print(f"   Status: {data.get('sim_status')}")
@@ -31,4 +30,7 @@ async def main():
             print(f"\n\nReceived {message_count} messages total")
 
 
-asyncio.run(main())
+
+
+
+asyncio.run(traffic())

@@ -376,12 +376,12 @@ async def _standalone_test():
         try:
             message = await asyncio.wait_for(traffic_queue.get(), timeout=5.0)
  
-            if (message["type"] == "junction_state" and junction_frames < TARGET_FRAMES):
+            if message["type"] == "junction_state" and junction_frames < TARGET_FRAMES:
                 print(f"\n=== JUNCTION STATE (frame {junction_frames + 1}) ===")
                 print(json.dumps(message, indent=2))
                 junction_frames += 1
  
-            elif (message["type"] == "vehicle_positions" and vehicle_frames < TARGET_FRAMES):
+            elif message["type"] == "vehicle_positions" and vehicle_frames < TARGET_FRAMES:
                 print(f"\n=== VEHICLE POSITIONS (frame {vehicle_frames + 1}) ===")
                 
                 summary = {

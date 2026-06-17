@@ -12,11 +12,10 @@ logging.basicConfig(level=logging.INFO)
 def root():
     return {"status": "ok"}
 
-@app.websocket("/ws")
-async def ws(websocket: WebSocket):
+@app.websocket("/traffic")
+async def traffic_lights_ws(websocket: WebSocket):
     await websocket.accept()
 
-    # Lazy import so app starts even if SUMO/traci unavailable
     try:
         from backend.simulation.sumo_worker import sumo_worker
     except ImportError as e:
@@ -26,14 +25,13 @@ async def ws(websocket: WebSocket):
         return
 
     try:
-        # Create queues for communication between SUMO worker and WebSocket
-        traffic_queue = asyncio.Queue(maxsize=50)
-        db_queue = asyncio.Queue(maxsize=50)
+        traffic_queue = asyncio.Queue(maxsize=500)
+        db_queue = asyncio.Queue(maxsize=100)
         shutdown_event = asyncio.Event()
 
-        # Launch the SUMO worker as a background task
+        # Launch worker as a background task
         worker_task = asyncio.create_task(
-            sumo_worker(traffic_queue, db_queue, shutdown_event)
+            sumo_worker(traffic_queue=traffic_queue, shutdown_event=shutdown_event, db_queue=db_queue)
         )
 
         # Stream traffic data to the WebSocket client
@@ -72,4 +70,3 @@ async def ws(websocket: WebSocket):
             await websocket.close()
         except Exception:
             pass
-
