@@ -310,7 +310,7 @@ async def sumo_worker(
             "--no-warnings",
             "--duration-log.disable", "true",
             "--step-length", str(STEP_LENGTH)
-        ], port=0)  # port=0 lets OS assign a free port — avoids restart conflicts
+        ])  # port=0 lets OS assign a free port — avoids restart conflicts
     except Exception as e:
         print(f"[ERROR] traci.start() failed: {e}", file=sys.stderr)
         shutdown_event.set()
