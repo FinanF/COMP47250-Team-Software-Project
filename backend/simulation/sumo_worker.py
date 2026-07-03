@@ -198,6 +198,7 @@ def get_junction_state(tls_id: str, sim_time: float) -> dict:
         "current_phase": phase,
         "phase_duration_total": phase_duration,
         "phase_duration_remaining": phase_duration_remaining,
+        "phase_duration_elapsed": round(phase_duration - phase_duration_remaining, 1),
         "signal_state": signal_state,
         "approaches": list(lane_states.values())
     }
