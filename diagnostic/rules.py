@@ -211,3 +211,31 @@ class RuleBasedDetector:
             "west":        ["west"],
         }
         return mapping.get(phase, [])
+
+
+    def _check_cycle_too_long(self, jid, queues, phase, state={}) -> list:
+        """
+        Cycle too long: total cycle duration is excessively long causing
+        vehicles to wait through multiple full cycles even at moderate demand.
+        Threshold: phase_duration_total > 120 seconds with any queue present.
+        """
+        events = []
+        phase_total = state.get("phase_duration_total", 0)
+        total_q = sum(queues.values())
+
+        if phase_total > 120 and total_q > 3:
+            severity = min((phase_total - 120) / 60.0, 1.0)
+            explanation = (
+                f"Junction {jid} has a total cycle duration of {phase_total:.0f}s — "
+                f"vehicles are waiting through excessively long cycles with {total_q} vehicles queued. "
+                f"Reducing the cycle length would improve throughput."
+            )
+            events.append(CongestionEvent(
+                junction_id    = jid,
+                pattern_type   = "cycle_too_long",
+                severity_score = round(severity, 2),
+                explanation    = explanation,
+                queues         = queues,
+                active_phase   = phase,
+            ))
+        return events
