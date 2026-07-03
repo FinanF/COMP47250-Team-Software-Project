@@ -1,3 +1,6 @@
 venv/
 __pycache__/
 *.pyc
+*.pkl
+.DS_Store
+ground_truth.csv

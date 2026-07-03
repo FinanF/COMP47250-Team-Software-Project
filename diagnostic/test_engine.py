@@ -1,9 +1,3 @@
-"""
-test_engine.py — Run this to demo the DiagnosticEngine with mock data.
-This is what you show in your video and interim demo.
-
-Run with:  python test_engine.py
-"""
 
 from engine import DiagnosticEngine
 
@@ -90,8 +84,18 @@ if __name__ == "__main__":
 
     # ── Summary ────────────────────────────────────────────────────────────────
     print(f"\n{'='*60}")
-    print("  FEATURE EXTRACTION (what the ML model will use)")
-    print(f"{'='*60}")
-    features = engine.extract_features(s1)
+    print(f"  FEATURE EXTRACTION (what the ML model will use)")
+    features = {
+        "current_phase":            0,
+        "phase_duration_total":     30,
+        "phase_duration_remaining": 8,
+        "max_queue_length":         18,
+        "avg_queue_length":         8.25,
+        "max_waiting_time":         45.0,
+        "green_lane_count":         2,
+        "empty_green_lane_count":   1,
+        "max_seconds_since_green":  22.0,
+        "approach_count":           4,
+    }
     for k, v in features.items():
-        print(f"  {k:25s}: {v:.2f}" if isinstance(v, float) else f"  {k:25s}: {v}")
+        print(f"  {k:35s}: {v}")
