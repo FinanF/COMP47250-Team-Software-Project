@@ -94,7 +94,9 @@ class RuleBasedDetector:
 
             if green_queue <= GREEN_WASTE_QUEUE_THRESHOLD and max_waiting_q >= STARVATION_MIN_QUEUE:
                 # Severity: how full the waiting directions are relative to max possible
-                severity = min(max_waiting_q / 30.0, 1.0)
+                green_emptiness = 1.0 - (green_queue / max(GREEN_WASTE_QUEUE_THRESHOLD, 1))
+                waiting_fullness = min(max_waiting_q / 30.0, 1.0)
+                severity = round((green_emptiness + waiting_fullness) / 2, 2)
 
                 worst_dir = max(waiting_dirs, key=waiting_dirs.get)
                 explanation = (
