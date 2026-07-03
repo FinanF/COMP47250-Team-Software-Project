@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+*.pkl
+results.txt
+.DS_Store
+ground_truth.csv
