@@ -1,241 +1,146 @@
 """
 rules.py — Rule-based congestion pattern detector
-Layer 1 of the DiagnosticEngine.
+Updated to match Ruhao's actual SUMO junction_state schema.
 
-Detects three patterns:
-  1. green_waste    — green phase active but that direction has near-zero queue
-  2. phase_starvation — one direction's queue keeps growing across multiple readings
-  3. demand_imbalance — two directions have very unequal queues but equal phase time
+Detects four patterns:
+  1. green_waste       — green lane active but queue_length is zero
+  2. phase_starvation  — a non-green lane queue keeps growing
+  3. demand_imbalance  — large difference between max and avg queue
+  4. cycle_too_long    — total cycle duration excessively long
 """
 
 from dataclasses import dataclass, field
 from collections import defaultdict, deque
 from datetime import datetime
 
-
-# ── Thresholds (tweak these once you have real SUMO data) ──────────────────────
-GREEN_WASTE_QUEUE_THRESHOLD = 2        # vehicles — below this = effectively empty
-STARVATION_GROWTH_STEPS     = 3        # how many consecutive steps queue must grow
-STARVATION_MIN_QUEUE        = 5        # minimum queue size to flag starvation
-IMBALANCE_RATIO             = 3.0      # flagged direction is 3x the other
-IMBALANCE_MIN_QUEUE         = 4        # ignore tiny queues for imbalance check
+# ── Thresholds ────────────────────────────────────────────────────────────────
+GREEN_WASTE_WAITING_THRESHOLD = 3
+STARVATION_GROWTH_STEPS       = 3
+STARVATION_MIN_QUEUE          = 5
+IMBALANCE_RATIO               = 3.0
+IMBALANCE_MIN_QUEUE           = 4
+CYCLE_TOO_LONG_THRESHOLD      = 120
 
 
 @dataclass
 class CongestionEvent:
-    junction_id:   str
-    pattern_type:  str          # green_waste | phase_starvation | demand_imbalance
-    severity_score: float       # 0.0 → 1.0
-    explanation:   str          # plain English for the dashboard
-    queues:        dict         # snapshot of queue lengths when detected
-    active_phase:  str
-    detected_at:   str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    junction_id:    str
+    pattern_type:   str
+    severity_score: float
+    explanation:    str
+    queues:         dict
+    active_phase:   str
+    detected_at:    str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
 class RuleBasedDetector:
-    """
-    Stateful detector — call analyse() on every incoming traffic_state dict.
-    Maintains a short history per junction for starvation detection.
-    """
-
     def __init__(self):
-        # Store last N queue readings per junction per direction
         self._history: dict[str, dict[str, deque]] = defaultdict(
             lambda: defaultdict(lambda: deque(maxlen=STARVATION_GROWTH_STEPS + 1))
         )
 
-    # ── Public API ─────────────────────────────────────────────────────────────
-
     def analyse(self, state: dict) -> list[CongestionEvent]:
-        """
-        Takes one traffic_state dict, returns a list of CongestionEvents (may be empty).
+        if state.get("type") != "junction_state":
+            return []
 
-        Expected state format:
-        {
-            "junction_id":             "J_004",
-            "timestamp":               "2026-06-17T10:00:00",
-            "queues":                  {"north": 18, "south": 0, "east": 2, "west": 14},
-            "active_phase":            "north_south",
-            "phase_duration_elapsed":  22,
-            "phase_duration_total":    30
+        events     = []
+        jid        = state.get("id", "unknown")
+        approaches = state.get("approaches", [])
+        phase      = str(state.get("current_phase", 0))
+        total      = state.get("phase_duration_total", 0)
+
+        for approach in approaches:
+            lane_id = approach.get("lane_id", "unknown")
+            q       = approach.get("queue_length", 0)
+            self._history[jid][lane_id].append(q)
+
+        queues_snapshot = {
+            a.get("lane_id", "unknown"): a.get("queue_length", 0)
+            for a in approaches
         }
-        """
-        events = []
-        jid    = state["junction_id"]
-        queues = state["queues"]
-        phase  = state["active_phase"]
 
-        # Update history
-        for direction, length in queues.items():
-            self._history[jid][direction].append(length)
-
-        events += self._check_green_waste(jid, queues, phase)
-        events += self._check_starvation(jid, queues, phase)
-        events += self._check_demand_imbalance(jid, queues, phase)
-
+        events += self._check_green_waste(jid, approaches, phase, queues_snapshot)
+        events += self._check_starvation(jid, approaches, phase, queues_snapshot)
+        events += self._check_demand_imbalance(jid, approaches, phase, queues_snapshot)
+        events += self._check_cycle_too_long(jid, approaches, phase, total, queues_snapshot)
         return events
 
-    # ── Pattern checks ─────────────────────────────────────────────────────────
+    def _check_green_waste(self, jid, approaches, phase, queues_snapshot):
+        events        = []
+        green_lanes   = [a for a in approaches if a.get("green") is True]
+        waiting_lanes = [a for a in approaches if a.get("green") is False]
+        max_waiting_q = max((a.get("queue_length", 0) for a in waiting_lanes), default=0)
 
-    def _check_green_waste(self, jid, queues, phase) -> list[CongestionEvent]:
-        """
-        Green phase waste: the active phase direction has near-zero queue
-        while at least one other direction has a significant queue.
-        """
-        events = []
-
-        # Figure out which directions are currently getting green
-        green_dirs = self._phase_to_directions(phase)
-        waiting_dirs = {d: q for d, q in queues.items() if d not in green_dirs}
-
-        for gdir in green_dirs:
-            green_queue   = queues.get(gdir, 0)
-            max_waiting_q = max(waiting_dirs.values(), default=0)
-
-            if green_queue <= GREEN_WASTE_QUEUE_THRESHOLD and max_waiting_q >= STARVATION_MIN_QUEUE:
-                # Severity: how full the waiting directions are relative to max possible
-                green_emptiness = 1.0 - (green_queue / max(GREEN_WASTE_QUEUE_THRESHOLD, 1))
+        for lane in green_lanes:
+            green_q = lane.get("queue_length", 0)
+            lane_id = lane.get("lane_id", "unknown")
+            if green_q <= GREEN_WASTE_WAITING_THRESHOLD and max_waiting_q >= STARVATION_MIN_QUEUE:
+                green_emptiness  = 1.0 - (green_q / max(GREEN_WASTE_WAITING_THRESHOLD, 1))
                 waiting_fullness = min(max_waiting_q / 30.0, 1.0)
-                severity = round((green_emptiness + waiting_fullness) / 2, 2)
-
-                worst_dir = max(waiting_dirs, key=waiting_dirs.get)
+                severity         = round((green_emptiness + waiting_fullness) / 2, 2)
+                worst_lane       = max(waiting_lanes, key=lambda a: a.get("queue_length", 0))
                 explanation = (
-                    f"Green phase active for {gdir} direction with only {green_queue} vehicle(s) queued, "
-                    f"while {worst_dir} direction has {max_waiting_q} vehicle(s) waiting. "
+                    f"Lane {lane_id} is green with only {green_q} vehicle(s) queued, "
+                    f"while lane {worst_lane.get('lane_id')} has {max_waiting_q} vehicle(s) waiting on red. "
                     f"Signal time is being wasted on a near-empty approach."
                 )
-
-                events.append(CongestionEvent(
-                    junction_id    = jid,
-                    pattern_type   = "green_waste",
-                    severity_score = round(severity, 2),
-                    explanation    = explanation,
-                    queues         = queues,
-                    active_phase   = phase,
-                ))
-
+                events.append(CongestionEvent(jid, "green_waste", severity, explanation, queues_snapshot, phase))
         return events
 
-    def _check_starvation(self, jid, queues, phase) -> list[CongestionEvent]:
-        """
-        Phase starvation: a direction's queue has grown consistently
-        across the last N readings without being cleared.
-        """
-        events = []
-        green_dirs = self._phase_to_directions(phase)
+    def _check_starvation(self, jid, approaches, phase, queues_snapshot):
+        events        = []
+        waiting_lanes = [a for a in approaches if a.get("green") is False]
 
-        for direction, history in self._history[jid].items():
-            if direction in green_dirs:
-                continue  # currently getting green, not starved right now
+        for lane in waiting_lanes:
+            lane_id = lane.get("lane_id", "unknown")
+            history = self._history[jid][lane_id]
             if len(history) < STARVATION_GROWTH_STEPS:
-                continue  # not enough history yet
-
-            recent = list(history)[-STARVATION_GROWTH_STEPS:]
-            is_growing = all(recent[i] < recent[i + 1] for i in range(len(recent) - 1))
-            current_q  = queues.get(direction, 0)
-
-            if is_growing and current_q >= STARVATION_MIN_QUEUE:
-                growth     = recent[-1] - recent[0]
-                severity   = min(current_q / 30.0, 1.0)
-                explanation = (
-                    f"{direction.capitalize()} direction queue has grown by {growth} vehicle(s) "
-                    f"over the last {STARVATION_GROWTH_STEPS} readings, now at {current_q} vehicle(s). "
-                    f"This direction is not receiving sufficient green time to clear its queue."
-                )
-
-                events.append(CongestionEvent(
-                    junction_id    = jid,
-                    pattern_type   = "phase_starvation",
-                    severity_score = round(severity, 2),
-                    explanation    = explanation,
-                    queues         = queues,
-                    active_phase   = phase,
-                ))
-
-        return events
-
-    def _check_demand_imbalance(self, jid, queues, phase) -> list[CongestionEvent]:
-        """
-        Demand imbalance: two directions on the same phase axis have
-        very different queue lengths, suggesting the phase split is wrong.
-        """
-        events = []
-
-        # Compare opposing direction pairs
-        pairs = [("north", "south"), ("east", "west")]
-        for d1, d2 in pairs:
-            q1 = queues.get(d1, 0)
-            q2 = queues.get(d2, 0)
-
-            if max(q1, q2) < IMBALANCE_MIN_QUEUE:
                 continue
-
-            ratio = max(q1, q2) / max(min(q1, q2), 1)
-
-            if ratio >= IMBALANCE_RATIO:
-                heavy = d1 if q1 > q2 else d2
-                light = d2 if q1 > q2 else d1
-                heavy_q, light_q = max(q1, q2), min(q1, q2)
-                severity = min((ratio - 1) / 9.0, 1.0)  # ratio of 10 = severity 1.0
-
+            recent     = list(history)[-STARVATION_GROWTH_STEPS:]
+            is_growing = all(recent[i] < recent[i + 1] for i in range(len(recent) - 1))
+            current_q  = lane.get("queue_length", 0)
+            if is_growing and current_q >= STARVATION_MIN_QUEUE:
+                growth  = recent[-1] - recent[0]
+                ssg     = lane.get("seconds_since_green", 0)
+                severity = min(current_q / 30.0, 1.0)
                 explanation = (
-                    f"{heavy.capitalize()} direction has {heavy_q} vehicle(s) queued "
-                    f"versus only {light_q} on the {light} approach — a {ratio:.1f}x imbalance. "
-                    f"Phase timing does not reflect the actual demand distribution."
+                    f"Lane {lane_id} queue has grown by {growth} vehicle(s) "
+                    f"over the last {STARVATION_GROWTH_STEPS} readings, now at {current_q} vehicle(s). "
+                    f"This lane has been waiting {ssg:.0f}s since last green."
                 )
-
-                events.append(CongestionEvent(
-                    junction_id    = jid,
-                    pattern_type   = "demand_imbalance",
-                    severity_score = round(severity, 2),
-                    explanation    = explanation,
-                    queues         = queues,
-                    active_phase   = phase,
-                ))
-
+                events.append(CongestionEvent(jid, "phase_starvation", round(severity, 2), explanation, queues_snapshot, phase))
         return events
 
-    # ── Helper ─────────────────────────────────────────────────────────────────
-
-    def _phase_to_directions(self, phase: str) -> list[str]:
-        """
-        Maps a phase name to the directions currently getting green.
-        Adjust this mapping to match whatever SUMO/Ruhao uses.
-        """
-        mapping = {
-            "north_south": ["north", "south"],
-            "east_west":   ["east",  "west"],
-            "north":       ["north"],
-            "south":       ["south"],
-            "east":        ["east"],
-            "west":        ["west"],
-        }
-        return mapping.get(phase, [])
-
-
-    def _check_cycle_too_long(self, jid, queues, phase, state={}) -> list:
-        """
-        Cycle too long: total cycle duration is excessively long causing
-        vehicles to wait through multiple full cycles even at moderate demand.
-        Threshold: phase_duration_total > 120 seconds with any queue present.
-        """
+    def _check_demand_imbalance(self, jid, approaches, phase, queues_snapshot):
         events = []
-        phase_total = state.get("phase_duration_total", 0)
-        total_q = sum(queues.values())
+        if len(approaches) < 2:
+            return events
+        queue_lengths = [a.get("queue_length", 0) for a in approaches]
+        max_q  = max(queue_lengths)
+        avg_q  = sum(queue_lengths) / len(queue_lengths)
+        if max_q < IMBALANCE_MIN_QUEUE:
+            return events
+        ratio = max_q / max(avg_q, 1)
+        if ratio >= IMBALANCE_RATIO:
+            severity   = min((ratio - 1) / 9.0, 1.0)
+            worst_lane = max(approaches, key=lambda a: a.get("queue_length", 0))
+            explanation = (
+                f"Junction {jid} has a demand imbalance — lane {worst_lane.get('lane_id')} "
+                f"has {max_q} vehicle(s) versus an average of {avg_q:.1f} across all approaches "
+                f"({ratio:.1f}x imbalance). Phase timing does not reflect actual demand."
+            )
+            events.append(CongestionEvent(jid, "demand_imbalance", round(severity, 2), explanation, queues_snapshot, phase))
+        return events
 
-        if phase_total > 120 and total_q > 3:
-            severity = min((phase_total - 120) / 60.0, 1.0)
+    def _check_cycle_too_long(self, jid, approaches, phase, phase_total, queues_snapshot):
+        events  = []
+        total_q = sum(a.get("queue_length", 0) for a in approaches)
+        if phase_total > CYCLE_TOO_LONG_THRESHOLD and total_q > 3:
+            severity = min((phase_total - CYCLE_TOO_LONG_THRESHOLD) / 60.0, 1.0)
             explanation = (
                 f"Junction {jid} has a total cycle duration of {phase_total:.0f}s — "
                 f"vehicles are waiting through excessively long cycles with {total_q} vehicles queued. "
-                f"Reducing the cycle length would improve throughput."
+                f"Reducing cycle length would improve throughput."
             )
-            events.append(CongestionEvent(
-                junction_id    = jid,
-                pattern_type   = "cycle_too_long",
-                severity_score = round(severity, 2),
-                explanation    = explanation,
-                queues         = queues,
-                active_phase   = phase,
-            ))
+            events.append(CongestionEvent(jid, "cycle_too_long", round(severity, 2), explanation, queues_snapshot, phase))
         return events
