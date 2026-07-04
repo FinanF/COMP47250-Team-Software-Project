@@ -1,6 +1,5 @@
 """
 optimiser.py — Traffic Signal Optimisation Engine
-Member 2 (Princeton) — COMP47250 Group Project
 
 Takes a congestion event from the diagnostic layer and calculates
 better signal timings for that junction. Returns a recommendation
