@@ -1,6 +1,5 @@
 """
 
-
 optimisation_worker.py — asyncio background task
 Reads congestion events from event_queue (put there by diagnostic_worker),
 runs TrafficSignalOptimiser, sends recommendations to recommendation_queue
