@@ -232,6 +232,49 @@ def get_vehicle_positions() -> list:
     return vehicles
 
 
+def build_signal_program(junction_id: str, new_phase_durations: list[float]):
+    logics = traci.trafficlight.getAllProgramLogics(junction_id)
+    if not logics:
+        raise ValueError(f"No program logic found for junction {junction_id}")
+
+    logic = logics[0]
+    phases = list(logic.phases)
+
+    if len(new_phase_durations) != len(phases):
+        raise ValueError(
+            f"{junction_id} has {len(phases)} phases but "
+            f"{len(new_phase_durations)} durations were provided"
+        )
+
+    new_phases = [
+        traci.trafficlight.Phase(dur, phases[i].state)
+        for i, dur in enumerate(new_phase_durations)
+    ]
+
+    return traci.trafficlight.Logic(
+        logic.programID,
+        logic.type,
+        logic.currentPhaseIndex,
+        new_phases
+    )
+
+
+def get_phase_structure(junction_id: str) -> list[dict]:
+    logics = traci.trafficlight.getAllProgramLogics(junction_id)
+    if not logics:
+        raise ValueError(f"No program logic found for {junction_id}")
+
+    return [
+        {
+            "index": i,
+            "duration": phase.duration,
+            "state": phase.state,
+            "is_green": any(s in ('G', 'g') for s in phase.state)
+        }
+        for i, phase in enumerate(logics[0].phases)
+    ]
+
+
 def capture_baseline(junction_id: str, sim_time: float):
     try:
         controlled_links = traci.trafficlight.getControlledLinks(junction_id)
