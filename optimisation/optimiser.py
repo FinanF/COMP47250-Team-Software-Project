@@ -6,11 +6,8 @@ Takes a congestion event from the diagnostic layer and calculates
 better signal timings for that junction. Returns a recommendation
 with before/after metrics for the backend to store and the frontend to display.
 
-Handles all four pattern types from the diagnostic layer:
-  - green_waste       : green time running on empty lanes
-  - phase_starvation  : one direction not getting enough green
-  - demand_imbalance  : phase timing doesn't match actual demand
-  - cycle_too_long    : overall cycle is too long
+Updated: now outputs new_phase_durations (flat list in phase order)
+alongside new_phase_splits (for dashboard), as requested by Ruhao.
 """
 
 from dataclasses import dataclass, field
@@ -24,6 +21,7 @@ import numpy as np
 MIN_GREEN_TIME   = 10   # seconds — minimum green any phase can get (safety)
 MAX_CYCLE_LENGTH = 120  # seconds — maximum total cycle length
 MIN_CYCLE_LENGTH = 40   # seconds — minimum total cycle length
+YELLOW_DURATION  = 3.0  # seconds — yellow phase duration (never changed)
 
 
 # ── Data classes ──────────────────────────────────────────────────────────────
@@ -34,28 +32,67 @@ class OptimisationRecommendation:
     One recommendation sent to the backend.
     Contains old timings, new timings, and before/after metrics.
     """
-    junction_id:        str
-    pattern_type:       str
-    severity_score:     float
+    junction_id:         str
+    pattern_type:        str
+    severity_score:      float
 
     # Timings
-    old_cycle_length:   float
-    new_cycle_length:   float
-    old_phase_splits:   dict   # e.g. {"green": 42, "red": 18}
-    new_phase_splits:   dict   # e.g. {"green": 30, "red": 30}
+    old_cycle_length:    float
+    new_cycle_length:    float
+    old_phase_splits:    dict    # e.g. {"lane_A": 42, "lane_B": 18} — for dashboard
+    new_phase_splits:    dict    # e.g. {"lane_A": 30, "lane_B": 30} — for dashboard
+    new_phase_durations: list    # e.g. [30.0, 3.0, 30.0, 3.0] — for Ruhao's SUMO apply
 
     # Before / after metrics
-    before_max_queue:   float
-    after_est_queue:    float
-    before_avg_wait:    float
-    after_est_wait:     float
-    improvement_pct:    float  # % reduction in estimated wait time
+    before_max_queue:    float
+    after_est_queue:     float
+    before_avg_wait:     float
+    after_est_wait:      float
+    improvement_pct:     float
 
     # Human-readable explanation for the dashboard
-    explanation:        str
+    explanation:         str
 
     # Timestamp
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
+def build_phase_durations(new_splits: dict, phase_structure: list) -> list:
+    """
+    Converts new_phase_splits into a flat new_phase_durations list
+    that matches the full SUMO phase structure (including yellow phases).
+
+    phase_structure comes from Ruhao's get_phase_structure() helper:
+    [{"index": 0, "duration": 42.0, "state": "GGrr", "is_green": True}, ...]
+
+    Green phases get the new optimised durations.
+    Yellow/all-red phases keep their existing duration unchanged.
+    """
+    if not phase_structure:
+        # Fallback: no phase structure provided, build a simple 4-phase list
+        # [green-A, yellow, green-B, yellow] using the split values
+        splits = list(new_splits.values())
+        if len(splits) >= 2:
+            return [splits[0], YELLOW_DURATION, splits[1], YELLOW_DURATION]
+        return [splits[0], YELLOW_DURATION] if splits else []
+
+    green_durations = list(new_splits.values())
+    green_index = 0
+    result = []
+
+    for phase in phase_structure:
+        if phase.get("is_green"):
+            # Replace with optimised duration
+            if green_index < len(green_durations):
+                result.append(round(green_durations[green_index], 1))
+                green_index += 1
+            else:
+                result.append(phase["duration"])
+        else:
+            # Yellow / all-red — never touch these
+            result.append(phase["duration"])
+
+    return result
 
 
 # ── Main optimiser class ───────────────────────────────────────────────────────
@@ -67,14 +104,13 @@ class TrafficSignalOptimiser:
 
     Usage:
         optimiser = TrafficSignalOptimiser()
-        recommendation = optimiser.optimise(event)
+        recommendation = optimiser.optimise(event, phase_structure=None)
+
+    phase_structure: optional list from Ruhao's get_phase_structure() helper.
+    If None, a default 4-phase structure is assumed.
     """
 
-    def optimise(self, event: dict):
-        """
-        Main entry point. Routes to the right strategy based on pattern type.
-        Returns an OptimisationRecommendation or None if nothing to do.
-        """
+    def optimise(self, event: dict, phase_structure: list = None):
         pattern   = event.get("pattern_type", "")
         severity  = event.get("severity_score", 0.0)
         junction  = event.get("junction_id", "unknown")
@@ -88,61 +124,40 @@ class TrafficSignalOptimiser:
             print(f"[Optimiser] No queue data for {junction}, skipping.")
             return None
 
-        # Route to the correct strategy
         if pattern == "green_waste":
-            return self._optimise_green_waste(event, junction, queues, phase, cycle, severity)
-
+            return self._optimise_green_waste(event, junction, queues, phase, cycle, severity, phase_structure)
         elif pattern == "phase_starvation":
-            return self._optimise_starvation(event, junction, queues, phase, cycle, severity)
-
+            return self._optimise_starvation(event, junction, queues, phase, cycle, severity, phase_structure)
         elif pattern == "demand_imbalance":
-            return self._optimise_imbalance(event, junction, queues, phase, cycle, severity)
-
+            return self._optimise_imbalance(event, junction, queues, phase, cycle, severity, phase_structure)
         elif pattern == "cycle_too_long":
-            return self._optimise_cycle_length(event, junction, queues, phase, cycle, severity)
-
+            return self._optimise_cycle_length(event, junction, queues, phase, cycle, severity, phase_structure)
         else:
             print(f"[Optimiser] Unknown pattern '{pattern}', skipping.")
             return None
 
 
-    # ── Strategy 1: Green waste ───────────────────────────────────────────────
-    # Problem: green phase running on a nearly empty lane while others queue.
-    # Fix: shrink the wasted green phase, give that time to the starved phases.
-
-    def _optimise_green_waste(self, event, junction, queues, phase, cycle, severity):
-        lanes       = list(queues.keys())
-        queue_vals  = list(queues.values())
-        total_q     = sum(queue_vals) or 1
-
-        # Use scipy linprog to allocate green time proportional to queue demand.
-        # Minimise: -throughput (i.e. maximise throughput)
-        # Each lane gets green time proportional to its share of total queue.
-        # Subject to: each lane >= MIN_GREEN_TIME, sum = cycle length.
-
-        n = len(lanes)
+    def _optimise_green_waste(self, event, junction, queues, phase, cycle, severity, phase_structure):
+        lanes      = list(queues.keys())
+        queue_vals = list(queues.values())
+        total_q    = sum(queue_vals) or 1
+        n          = len(lanes)
         if n < 2:
             return None
 
-        # Demand weights — how much of the cycle each lane deserves
-        weights = np.array([max(q, 1) / total_q for q in queue_vals])
-
-        # Simple proportional allocation (linprog overkill for 2-phase,
-        # but scales cleanly to N phases)
+        weights        = np.array([max(q, 1) / total_q for q in queue_vals])
         new_splits_raw = weights * cycle
-        # Enforce minimum green time
-        new_splits = np.clip(new_splits_raw, MIN_GREEN_TIME, cycle)
-        # Normalise back to cycle length
-        new_splits = new_splits / new_splits.sum() * cycle
-        new_splits = np.round(new_splits, 1)
+        new_splits     = np.clip(new_splits_raw, MIN_GREEN_TIME, cycle)
+        new_splits     = new_splits / new_splits.sum() * cycle
+        new_splits     = np.round(new_splits, 1)
 
-        old_splits = {lane: round(cycle / n, 1) for lane in lanes}
+        old_splits       = {lane: round(cycle / n, 1) for lane in lanes}
         new_phase_splits = {lane: float(new_splits[i]) for i, lane in enumerate(lanes)}
+        new_phase_durations = build_phase_durations(new_phase_splits, phase_structure)
 
-        # Before/after estimate
         before_max  = max(queue_vals)
         after_est   = before_max * (1 - severity * 0.5)
-        before_wait = before_max * 3.0   # rough: 3s per queued vehicle
+        before_wait = before_max * 3.0
         after_wait  = after_est  * 3.0
         improvement = round(((before_wait - after_wait) / before_wait) * 100, 1) if before_wait > 0 else 0
 
@@ -153,40 +168,26 @@ class TrafficSignalOptimiser:
         )
 
         return OptimisationRecommendation(
-            junction_id      = junction,
-            pattern_type     = "green_waste",
-            severity_score   = severity,
-            old_cycle_length = cycle,
-            new_cycle_length = cycle,
-            old_phase_splits = old_splits,
-            new_phase_splits = new_phase_splits,
-            before_max_queue = before_max,
-            after_est_queue  = round(after_est, 1),
-            before_avg_wait  = round(before_wait, 1),
-            after_est_wait   = round(after_wait, 1),
-            improvement_pct  = improvement,
-            explanation      = explanation,
+            junction_id=junction, pattern_type="green_waste", severity_score=severity,
+            old_cycle_length=cycle, new_cycle_length=cycle,
+            old_phase_splits=old_splits, new_phase_splits=new_phase_splits,
+            new_phase_durations=new_phase_durations,
+            before_max_queue=before_max, after_est_queue=round(after_est, 1),
+            before_avg_wait=round(before_wait, 1), after_est_wait=round(after_wait, 1),
+            improvement_pct=improvement, explanation=explanation,
         )
 
 
-    # ── Strategy 2: Phase starvation ─────────────────────────────────────────
-    # Problem: one lane's queue is growing — it's not getting enough green time.
-    # Fix: increase green time for the starved lane, reduce elsewhere.
-
-    def _optimise_starvation(self, event, junction, queues, phase, cycle, severity):
+    def _optimise_starvation(self, event, junction, queues, phase, cycle, severity, phase_structure):
         if not queues:
             return None
-
         lanes      = list(queues.keys())
         queue_vals = list(queues.values())
         total_q    = sum(queue_vals) or 1
         n          = len(lanes)
-
-        # Find the most starved lane (highest queue)
         max_idx    = int(np.argmax(queue_vals))
         starved    = lanes[max_idx]
 
-        # Boost starved lane by up to 40% extra green proportional to severity
         boost      = 1.0 + (severity * 0.4)
         weights    = np.array([max(q, 1) / total_q for q in queue_vals])
         weights[max_idx] *= boost
@@ -197,8 +198,9 @@ class TrafficSignalOptimiser:
         new_splits     = new_splits / new_splits.sum() * cycle
         new_splits     = np.round(new_splits, 1)
 
-        old_splits       = {lane: round(cycle / n, 1) for lane in lanes}
-        new_phase_splits = {lane: float(new_splits[i]) for i, lane in enumerate(lanes)}
+        old_splits          = {lane: round(cycle / n, 1) for lane in lanes}
+        new_phase_splits    = {lane: float(new_splits[i]) for i, lane in enumerate(lanes)}
+        new_phase_durations = build_phase_durations(new_phase_splits, phase_structure)
 
         before_max  = max(queue_vals)
         after_est   = before_max * (1 - severity * 0.55)
@@ -215,30 +217,19 @@ class TrafficSignalOptimiser:
         )
 
         return OptimisationRecommendation(
-            junction_id      = junction,
-            pattern_type     = "phase_starvation",
-            severity_score   = severity,
-            old_cycle_length = cycle,
-            new_cycle_length = cycle,
-            old_phase_splits = old_splits,
-            new_phase_splits = new_phase_splits,
-            before_max_queue = before_max,
-            after_est_queue  = round(after_est, 1),
-            before_avg_wait  = round(before_wait, 1),
-            after_est_wait   = round(after_wait, 1),
-            improvement_pct  = improvement,
-            explanation      = explanation,
+            junction_id=junction, pattern_type="phase_starvation", severity_score=severity,
+            old_cycle_length=cycle, new_cycle_length=cycle,
+            old_phase_splits=old_splits, new_phase_splits=new_phase_splits,
+            new_phase_durations=new_phase_durations,
+            before_max_queue=before_max, after_est_queue=round(after_est, 1),
+            before_avg_wait=round(before_wait, 1), after_est_wait=round(after_wait, 1),
+            improvement_pct=improvement, explanation=explanation,
         )
 
 
-    # ── Strategy 3: Demand imbalance ─────────────────────────────────────────
-    # Problem: one lane has far more vehicles than others.
-    # Fix: allocate green time weighted by actual queue lengths.
-
-    def _optimise_imbalance(self, event, junction, queues, phase, cycle, severity):
+    def _optimise_imbalance(self, event, junction, queues, phase, cycle, severity, phase_structure):
         if not queues:
             return None
-
         lanes      = list(queues.keys())
         queue_vals = list(queues.values())
         total_q    = sum(queue_vals) or 1
@@ -250,8 +241,9 @@ class TrafficSignalOptimiser:
         new_splits     = new_splits / new_splits.sum() * cycle
         new_splits     = np.round(new_splits, 1)
 
-        old_splits       = {lane: round(cycle / n, 1) for lane in lanes}
-        new_phase_splits = {lane: float(new_splits[i]) for i, lane in enumerate(lanes)}
+        old_splits          = {lane: round(cycle / n, 1) for lane in lanes}
+        new_phase_splits    = {lane: float(new_splits[i]) for i, lane in enumerate(lanes)}
+        new_phase_durations = build_phase_durations(new_phase_splits, phase_structure)
 
         before_max  = max(queue_vals)
         before_avg  = total_q / n
@@ -268,45 +260,32 @@ class TrafficSignalOptimiser:
         )
 
         return OptimisationRecommendation(
-            junction_id      = junction,
-            pattern_type     = "demand_imbalance",
-            severity_score   = severity,
-            old_cycle_length = cycle,
-            new_cycle_length = cycle,
-            old_phase_splits = old_splits,
-            new_phase_splits = new_phase_splits,
-            before_max_queue = before_max,
-            after_est_queue  = round(after_est, 1),
-            before_avg_wait  = round(before_wait, 1),
-            after_est_wait   = round(after_wait, 1),
-            improvement_pct  = improvement,
-            explanation      = explanation,
+            junction_id=junction, pattern_type="demand_imbalance", severity_score=severity,
+            old_cycle_length=cycle, new_cycle_length=cycle,
+            old_phase_splits=old_splits, new_phase_splits=new_phase_splits,
+            new_phase_durations=new_phase_durations,
+            before_max_queue=before_max, after_est_queue=round(after_est, 1),
+            before_avg_wait=round(before_wait, 1), after_est_wait=round(after_wait, 1),
+            improvement_pct=improvement, explanation=explanation,
         )
 
 
-    # ── Strategy 4: Cycle too long ────────────────────────────────────────────
-    # Problem: total cycle length is too long — vehicles wait too long per cycle.
-    # Fix: reduce cycle length, keep phase split ratios the same.
-
-    def _optimise_cycle_length(self, event, junction, queues, phase, cycle, severity):
+    def _optimise_cycle_length(self, event, junction, queues, phase, cycle, severity, phase_structure):
         if not queues:
             return None
-
         lanes      = list(queues.keys())
         queue_vals = list(queues.values())
         n          = len(lanes)
 
-        # Reduce cycle length proportional to severity
-        reduction     = severity * 0.3   # up to 30% shorter
-        new_cycle     = max(round(cycle * (1 - reduction), 1), MIN_CYCLE_LENGTH)
-
-        # Keep the same split ratios, just scale to new cycle
+        reduction        = severity * 0.3
+        new_cycle        = max(round(cycle * (1 - reduction), 1), MIN_CYCLE_LENGTH)
         old_splits       = {lane: round(cycle / n, 1) for lane in lanes}
         new_phase_splits = {lane: round(new_cycle / n, 1) for lane in lanes}
+        new_phase_durations = build_phase_durations(new_phase_splits, phase_structure)
 
         before_max  = max(queue_vals)
         after_est   = before_max * (1 - severity * 0.35)
-        before_wait = cycle / 2       # average wait ≈ half the cycle
+        before_wait = cycle / 2
         after_wait  = new_cycle / 2
         improvement = round(((before_wait - after_wait) / before_wait) * 100, 1) if before_wait > 0 else 0
 
@@ -318,17 +297,11 @@ class TrafficSignalOptimiser:
         )
 
         return OptimisationRecommendation(
-            junction_id      = junction,
-            pattern_type     = "cycle_too_long",
-            severity_score   = severity,
-            old_cycle_length = cycle,
-            new_cycle_length = new_cycle,
-            old_phase_splits = old_splits,
-            new_phase_splits = new_phase_splits,
-            before_max_queue = before_max,
-            after_est_queue  = round(after_est, 1),
-            before_avg_wait  = round(before_wait, 1),
-            after_est_wait   = round(after_wait, 1),
-            improvement_pct  = improvement,
-            explanation      = explanation,
+            junction_id=junction, pattern_type="cycle_too_long", severity_score=severity,
+            old_cycle_length=cycle, new_cycle_length=new_cycle,
+            old_phase_splits=old_splits, new_phase_splits=new_phase_splits,
+            new_phase_durations=new_phase_durations,
+            before_max_queue=before_max, after_est_queue=round(after_est, 1),
+            before_avg_wait=round(before_wait, 1), after_est_wait=round(after_wait, 1),
+            improvement_pct=improvement, explanation=explanation,
         )
