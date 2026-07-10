@@ -1,72 +1,95 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-import logging
+from contextlib import asynccontextmanager
 import asyncio
-import json
+import logging
 
-app = FastAPI()
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-logger = logging.getLogger(__name__)
+from backend.simulation.sumo_worker import sumo_worker
+from diagnostic.diagnostic_worker import diagnostic_worker
+from optimisation.optimisation_worker import optimisation_worker
+
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+traffic_queue = asyncio.Queue(maxsize=500)
+diagnostic_queue = asyncio.Queue(maxsize=500)
+event_queue = asyncio.Queue(maxsize=500)
+recommendation_queue = asyncio.Queue(maxsize=500)
+
+db_queue = asyncio.Queue(maxsize=100)
+shutdown_event = asyncio.Event()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting background workers...")
+
+    sumo_task = asyncio.create_task(
+        sumo_worker(
+            traffic_queue=traffic_queue,
+            shutdown_event=shutdown_event,
+        )
+    )
+
+    diagnostic_task = asyncio.create_task(
+        diagnostic_worker(
+            traffic_queue=traffic_queue,
+            event_queue=event_queue,
+        )
+    )
+
+    optimisation_task = asyncio.create_task(
+        optimisation_worker(
+            event_queue=event_queue,
+            recommendation_queue=recommendation_queue
+        )
+    )
+
+    try:
+        yield
+
+    finally:
+        logger.info("Stopping workers...")
+
+        shutdown_event.set()
+
+        tasks = [sumo_task, diagnostic_task, optimisation_task]
+
+        for task in tasks:
+            task.cancel()
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
-def root():
+async def root():
     return {"status": "ok"}
 
+
 @app.websocket("/traffic")
-async def traffic_lights_ws(websocket: WebSocket):
+async def traffic_ws(websocket: WebSocket):
     await websocket.accept()
 
     try:
-        from backend.simulation.sumo_worker import sumo_worker
-    except ImportError as e:
-        logger.exception("Failed to import backend.simulation.sumo_worker")
-        await websocket.send_json({"error": "import failed", "detail": str(e)})
-        await websocket.close()
-        return
+        while True:
+            state = await traffic_queue.get()
+            await websocket.send_json(state)
+
+    except WebSocketDisconnect:
+        logger.info("Traffic client disconnected.")
+
+
+@app.websocket("/opt")
+async def optimisation_ws(websocket: WebSocket):
+    await websocket.accept()
 
     try:
-        traffic_queue = asyncio.Queue(maxsize=500)
-        db_queue = asyncio.Queue(maxsize=100)
-        shutdown_event = asyncio.Event()
+        while True:
+            recommendation = await recommendation_queue.get()
+            await websocket.send_json(recommendation)
 
-        # Launch worker as a background task
-        worker_task = asyncio.create_task(
-            sumo_worker(traffic_queue=traffic_queue, shutdown_event=shutdown_event, db_queue=db_queue)
-        )
-
-        # Stream traffic data to the WebSocket client
-        try:
-            while not shutdown_event.is_set():
-                try:
-                    # Get data from the simulation queue with a timeout
-                    state = await asyncio.wait_for(traffic_queue.get(), timeout=3.0)
-                    # Send the state data to the WebSocket client
-                    await websocket.send_json(state)
-                except asyncio.TimeoutError:
-                    # Queue is empty, check if worker is still running
-                    if shutdown_event.is_set():
-                        logger.info("Simulation ended")
-                        break
-                    continue
-
-        except WebSocketDisconnect:
-            logger.info("WebSocket client disconnected")
-        finally:
-            # Shut down the worker when client disconnects
-            shutdown_event.set()
-            try:
-                await asyncio.wait_for(worker_task, timeout=5.0)
-            except asyncio.TimeoutError:
-                logger.warning("Worker task did not shutdown gracefully")
-                worker_task.cancel()
-
-    except Exception as e:
-        logger.exception("WebSocket error")
-        try:
-            await websocket.send_json({"error": "runtime error", "detail": str(e)})
-        except Exception:
-            pass
-        try:
-            await websocket.close()
-        except Exception:
-            pass
+    except WebSocketDisconnect:
+        logger.info("Optimisation client disconnected.")

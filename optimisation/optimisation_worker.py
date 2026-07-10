@@ -13,7 +13,7 @@ so all TraCI logic stays in sumo_worker.py.
 """
 
 import asyncio
-from optimiser import TrafficSignalOptimiser
+from optimisation.optimiser import TrafficSignalOptimiser
 
 
 async def optimisation_worker(

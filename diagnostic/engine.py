@@ -8,7 +8,7 @@ import pickle
 import pandas as pd
 from datetime import datetime
 from dataclasses import dataclass, field
-from rules import RuleBasedDetector
+from diagnostic.rules import RuleBasedDetector
 
 
 @dataclass
@@ -73,7 +73,6 @@ class MLClassifier:
         df          = pd.DataFrame([features])[self.FEATURE_COLS]
         prediction  = self.model.predict(df)[0]
         confidence  = self.model.predict_proba(df).max()
-
         if prediction == "normal" or confidence < 0.6:
             return None, 0.0
 
@@ -101,8 +100,8 @@ class DiagnosticEngine:
         # Layer 2 — only runs if model.pkl exists
         if self.ml_classifier.ready:
             pattern, confidence = self.ml_classifier.predict(state)
+            print(f"[DiagnosticEngine] ML prediction: {pattern} (confidence {confidence:.0%})")
             existing = {e.pattern_type for e in rule_events}
-
             if pattern and pattern not in existing:
                 events.append(CongestionEvent(
                     junction_id    = str(state.get("junction_id", "unknown")),
@@ -112,7 +111,7 @@ class DiagnosticEngine:
                     queues         = state.get("queues", {}),
                     active_phase   = str(state.get("current_phase", "unknown")),
                 ))
-
+                print(f"[DiagnosticEngine] ML detected {pattern} at junction {state.get('junction_id')} (confidence {confidence:.0%})")
         return events
 
     def _explain(self, pattern: str, confidence: float, state: dict) -> str:

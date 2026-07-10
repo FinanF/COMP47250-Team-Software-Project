@@ -13,7 +13,7 @@ from sklearn.metrics import (
 
 # ── 1. Load Ruhao's ground truth CSV ──────────────────────────────────────────
 # Running from inside diagnostic/ folder so go up one level to find backend/
-CSV_PATH = "ground_truth.csv"
+CSV_PATH = "backend/simulation/ground_truth.csv"
 
 print("Loading ground truth data...")
 df = pd.read_csv(CSV_PATH)

@@ -11,6 +11,10 @@ To deploy this project run
 ```bash
   docker-compose up --build
 ```
+To view the website connect to 
+```bash
+  http://localhost:3000
+```
 
 ## WebSocket API Reference
 
