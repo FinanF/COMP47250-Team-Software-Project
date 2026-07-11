@@ -74,21 +74,6 @@ async def optimisation_worker(
                 event_queue.task_done()
                 continue
 
-            # Apply into SUMO via Ruhao's build_signal_program helper
-            if sumo_integration and recommendation.new_phase_durations:
-                try:
-                    new_program = build_signal_program(
-                        recommendation.junction_id,
-                        recommendation.new_phase_durations
-                    )
-                    pending_changes[recommendation.junction_id] = new_program
-                    print(
-                        f"[OptimisationWorker] Applied to SUMO pending_changes: "
-                        f"{junction} → {recommendation.new_phase_durations}"
-                    )
-                except Exception as e:
-                    print(f"[OptimisationWorker] Could not apply to SUMO: {e}")
-
             # Build dict for backend / frontend
             rec_dict = {
                 "junction_id":        recommendation.junction_id,

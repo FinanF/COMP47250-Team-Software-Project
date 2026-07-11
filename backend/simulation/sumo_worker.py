@@ -192,6 +192,7 @@ def get_junction_state(tls_id: str, sim_time: float) -> dict:
     lon, lat = traci.simulation.convertGeo(x, y)
 
     return {
+        "type": "junction_state",
         "id": tls_id,
         "lat": round(lat, 6),
         "lng": round(lon, 6),
@@ -321,7 +322,7 @@ def apply_pending_changes():
     sim_time = traci.simulation.getTime()
 
     for junction_id, new_program in list(pending_changes.items()):
-        # Capture baseline BEFORE applying — order matters
+        # Capture baseline BEFORE applying
         capture_baseline(junction_id, sim_time)
         try:
             traci.trafficlight.setCompleteRedYellowGreenDefinition(

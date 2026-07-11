@@ -27,10 +27,16 @@ async def diagnostic_worker(
             # Block until a traffic state arrives from Ruhao's SUMO worker
             state = await traffic_queue.get()
             # Run both detection layers
-            events = engine.analyse(state)
-            print(f"[DiagnosticWorker] Detected {len(events)} events in state at {state.get('junction_id', 'unknown')}.")
+            if state["type"] != "junction_state":
+                continue
+            all_events=[]
+            for junction in state["junctions"]:
+                events = engine.analyse(junction)
+                all_events.extend(events)
+            if len(all_events)>0:
+                print(f"[DiagnosticWorker] Detected {len(all_events)} events.")
             # Push each event downstream to Princeton's optimisation worker
-            for event in events:
+            for event in all_events:
                 event_dict = {
                     "junction_id":    event.junction_id,
                     "pattern_type":   event.pattern_type,

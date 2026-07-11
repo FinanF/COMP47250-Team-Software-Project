@@ -100,7 +100,8 @@ class DiagnosticEngine:
         # Layer 2 — only runs if model.pkl exists
         if self.ml_classifier.ready:
             pattern, confidence = self.ml_classifier.predict(state)
-            print(f"[DiagnosticEngine] ML prediction: {pattern} (confidence {confidence:.0%})")
+            if pattern is not None:
+                print(f"[DiagnosticEngine] ML prediction: {pattern} (confidence {confidence:.0%})")
             existing = {e.pattern_type for e in rule_events}
             if pattern and pattern not in existing:
                 events.append(CongestionEvent(
