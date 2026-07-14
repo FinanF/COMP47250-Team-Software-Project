@@ -1,0 +1,450 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Dublin Traffic AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c3c6d6;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #737685;
+        }
+        .table-row-hover:hover {
+            background-color: rgba(0, 61, 155, 0.04);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary-fixed": "#380d00",
+                    "on-surface-variant": "#434654",
+                    "on-surface": "#191c1e",
+                    "error-container": "#ffdad6",
+                    "on-error-container": "#93000a",
+                    "background": "#f7f9fb",
+                    "surface-variant": "#e0e3e5",
+                    "outline-variant": "#c3c6d6",
+                    "tertiary-fixed-dim": "#ffb59b",
+                    "tertiary-container": "#a33500",
+                    "tertiary": "#7b2600",
+                    "on-tertiary-container": "#ffc6b2",
+                    "surface-container-high": "#e6e8ea",
+                    "on-tertiary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-on-surface": "#eff1f3",
+                    "secondary-fixed-dim": "#b7c7e5",
+                    "secondary": "#4f5f79",
+                    "surface": "#f7f9fb",
+                    "tertiary-fixed": "#ffdbcf",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-secondary-fixed": "#0a1c33",
+                    "on-primary-fixed": "#001848",
+                    "surface-tint": "#0c56d0",
+                    "primary-container": "#0052cc",
+                    "surface-container": "#eceef0",
+                    "primary-fixed": "#dae2ff",
+                    "on-tertiary-fixed-variant": "#812800",
+                    "on-secondary-container": "#53637e",
+                    "on-primary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "outline": "#737685",
+                    "on-error": "#ffffff",
+                    "on-primary-container": "#c4d2ff",
+                    "secondary-fixed": "#d5e3ff",
+                    "on-secondary-fixed-variant": "#384760",
+                    "secondary-container": "#d0e0ff",
+                    "surface-container-low": "#f2f4f6",
+                    "surface-dim": "#d8dadc",
+                    "surface-bright": "#f7f9fb",
+                    "on-primary-fixed-variant": "#0040a2",
+                    "primary-fixed-dim": "#b2c5ff",
+                    "primary": "#003d9b",
+                    "inverse-primary": "#b2c5ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "container-margin": "24px",
+                    "base": "4px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "title-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "data-mono": ["JetBrains Mono"],
+                    "title-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"]
+            },
+            "fontSize": {
+                    "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-background text-on-background min-h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-xl">
+<a href="index.html" class="font-headline-sm text-headline-sm font-bold text-primary">Dublin Traffic AI</a>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant font-medium font-title-md text-title-md hover:text-primary transition-colors duration-200" href="index.html">Dashboard</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-title-md text-title-md" href="intersections.html">Intersections</a>
+<a class="text-on-surface-variant font-medium font-title-md text-title-md hover:text-primary transition-colors duration-200" href="analytics.html">Analytics</a>
+<a class="text-on-surface-variant font-medium font-title-md text-title-md hover:text-primary transition-colors duration-200" href="audit-log.html">Audit Log</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<div class="flex items-center bg-surface-container-high rounded-full px-3 py-1 gap-3">
+<div class="flex items-center gap-2 text-on-secondary-container text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        CONNECTED
+    </div>
+<div class="h-4 border-l border-outline-variant"></div>
+<div class="flex items-center gap-1 text-primary font-data-mono text-body-sm">
+<span id="simulation-clock" class="">02:08:38</span>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-surface-container-lowest"></span>
+</button>
+<a href="settings.html" class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all flex items-center justify-center"><span class="material-symbols-outlined">settings</span></a>
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md cursor-pointer border border-outline-variant">
+                YW
+            </div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="w-full pt-16 h-screen flex flex-col">
+<div class="flex-1 overflow-y-auto custom-scrollbar p-lg">
+<!-- Summary Header -->
+<div class="flex items-end justify-between mb-lg">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Intersections</h1>
+<p class="text-on-surface-variant font-body-md text-body-md">Real-time status of 42 signalized junctions across Dublin metro area.</p>
+</div>
+<div class="flex gap-md">
+<button class="flex items-center gap-sm px-4 py-2 border border-outline-variant bg-surface-container-lowest rounded-lg font-title-md text-title-md text-on-surface-variant hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-md">filter_list</span> Filter
+                    </button>
+</div>
+</div>
+<!-- Summary KPI Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter mb-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">Total Junctions</span>
+<span class="material-symbols-outlined text-primary">grid_view</span>
+</div>
+<div>
+<p class="font-headline-md text-headline-md text-on-surface">42</p>
+<p class="text-body-sm text-label-sm text-outline">Network coverage: 100%</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">Congested Junctions</span>
+<span class="material-symbols-outlined text-error">warning</span>
+</div>
+<div>
+<p class="font-headline-md text-headline-md text-error">8</p>
+<p class="text-body-sm text-label-sm text-error/80 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> +2 from last hour
+                        </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">Average Queue</span>
+<span class="material-symbols-outlined text-tertiary">directions_car</span>
+</div>
+<div>
+<p class="font-headline-md text-headline-md text-on-surface">14.2</p>
+<p class="text-body-sm text-label-sm text-outline">Vehicles per lane</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">Avg Waiting Time</span>
+<span class="material-symbols-outlined text-secondary">schedule</span>
+</div>
+<div>
+<p class="font-headline-md text-headline-md text-on-surface font-data-mono">42.8s</p>
+<p class="text-body-sm text-label-sm text-outline">System target: &lt; 45s</p>
+</div>
+</div>
+</div>
+<!-- Intersections Table -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden mb-lg shadow-sm">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container text-on-surface-variant font-label-md text-label-md border-b border-outline-variant">
+<tr>
+<th class="px-lg py-3 whitespace-nowrap">Junction ID</th>
+<th class="px-md py-3 whitespace-nowrap">Current Phase</th>
+<th class="px-md py-3 whitespace-nowrap">Signal State</th>
+<th class="px-md py-3 whitespace-nowrap">Queue Length</th>
+<th class="px-md py-3 whitespace-nowrap">Wait Time</th>
+<th class="px-md py-3 whitespace-nowrap">Total Vehicles</th>
+<th class="px-md py-3 whitespace-nowrap">Status</th>
+<th class="px-lg py-3 whitespace-nowrap text-right">Last Updated</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Selected Row -->
+<tr class="table-row-hover bg-primary-container/5 transition-colors cursor-pointer border-l-4 border-l-primary">
+<td class="px-lg py-4 font-title-md text-title-md text-primary">J-742</td>
+<td class="px-md py-4 text-body-md">E-W Green</td>
+<td class="px-md py-4 text-body-md flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Stable
+                                </td>
+<td class="px-md py-4 font-data-mono text-data-mono">12</td>
+<td class="px-md py-4 font-data-mono text-data-mono">38.4s</td>
+<td class="px-md py-4 font-data-mono text-data-mono">1,240</td>
+<td class="px-md py-4">
+<span class="px-2 py-1 rounded-full bg-secondary-container text-on-secondary-container text-label-sm font-bold">Moderate Delay</span>
+</td>
+<td class="px-lg py-4 text-right text-outline font-data-mono text-body-sm">02:08:38</td>
+</tr>
+<tr class="table-row-hover transition-colors cursor-pointer">
+<td class="px-lg py-4 font-title-md text-title-md text-on-surface">J-811</td>
+<td class="px-md py-4 text-body-md">N-S Green</td>
+<td class="px-md py-4 text-body-md flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error"></span> Unstable
+                                </td>
+<td class="px-md py-4 font-data-mono text-data-mono">45</td>
+<td class="px-md py-4 font-data-mono text-data-mono">112s</td>
+<td class="px-md py-4 font-data-mono text-data-mono">3,421</td>
+<td class="px-md py-4">
+<span class="px-2 py-1 rounded-full bg-error-container text-on-error-container text-label-sm font-bold">Heavy Queue</span>
+</td>
+<td class="px-lg py-4 text-right text-outline font-data-mono text-body-sm">14:21:58</td>
+</tr>
+<tr class="table-row-hover transition-colors cursor-pointer">
+<td class="px-lg py-4 font-title-md text-title-md text-on-surface">J-204</td>
+<td class="px-md py-4 text-body-md">All Red</td>
+<td class="px-md py-4 text-body-md flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span> Cycle Start</td>
+<td class="px-md py-4 font-data-mono text-data-mono">4</td>
+<td class="px-md py-4 font-data-mono text-data-mono">12.1s</td>
+<td class="px-md py-4 font-data-mono text-data-mono">654</td>
+<td class="px-md py-4">
+<span class="px-2 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm font-bold">Normal</span>
+</td>
+<td class="px-lg py-4 text-right text-outline font-data-mono text-body-sm">14:22:01</td>
+</tr>
+<tr class="table-row-hover transition-colors cursor-pointer">
+<td class="px-lg py-4 font-title-md text-title-md text-on-surface">J-559</td>
+<td class="px-md py-4 text-body-md">S-W Turn</td>
+<td class="px-md py-4 text-body-md flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Stable
+                                </td>
+<td class="px-md py-4 font-data-mono text-data-mono">8</td>
+<td class="px-md py-4 font-data-mono text-data-mono">22.5s</td>
+<td class="px-md py-4 font-data-mono text-data-mono">1,102</td>
+<td class="px-md py-4">
+<span class="px-2 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm font-bold">Normal</span>
+</td>
+<td class="px-lg py-4 text-right text-outline font-data-mono text-body-sm">14:21:45</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Detail Panel (Bottom/Floating) -->
+<div class="fixed bottom-0 right-0 left-0 z-40 bg-surface-container-lowest border-t border-outline-variant p-lg shadow-[0_-4px_12px_rgba(0,0,0,0.05)] transform transition-transform duration-300">
+<div class="max-w-[1440px] mx-auto flex flex-col lg:flex-row gap-lg">
+<!-- Junction Identity -->
+<div class="lg:w-1/4 lg:border-r border-outline-variant pr-lg">
+<div class="flex items-center justify-between mb-md">
+<h2 class="font-title-lg text-title-lg text-on-surface">Selected Junction: J-742</h2>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-on-surface">open_in_new</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between">
+<span class="text-body-md text-on-surface-variant">Coordinates</span>
+<span class="font-data-mono text-body-md">53.3498, -6.2603</span>
+</div>
+<div class="flex justify-between">
+<span class="text-body-md text-on-surface-variant">Current Phase</span>
+<span class="text-body-md font-bold text-primary">E-W Green</span>
+</div>
+<div class="flex justify-between">
+<span class="text-body-md text-on-surface-variant">Signal State</span>
+<span class="text-body-md">Stable Loop</span>
+</div>
+<div class="flex justify-between items-center bg-primary/5 p-2 rounded">
+<span class="text-body-md text-primary font-bold">Phase Remaining</span>
+<span class="font-data-mono text-headline-sm text-primary">14s</span>
+</div>
+</div>
+</div>
+<!-- Metrics Grid -->
+<div class="lg:w-1/4 lg:border-r border-outline-variant px-lg">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase mb-md">Junction Metrics</p>
+<div class="grid grid-cols-2 gap-md">
+<div class="bg-surface-container p-sm rounded-lg">
+<p class="text-label-sm text-outline">Queue (Total)</p>
+<p class="font-headline-sm text-headline-sm">12</p>
+</div>
+<div class="bg-surface-container p-sm rounded-lg">
+<p class="text-label-sm text-outline">Total Vehicles</p>
+<p class="font-headline-sm text-headline-sm">1,240</p>
+</div>
+<div class="bg-surface-container p-sm rounded-lg">
+<p class="text-label-sm text-outline">Occupancy</p>
+<p class="font-headline-sm text-headline-sm">64%</p>
+</div>
+<div class="bg-surface-container p-sm rounded-lg">
+<p class="text-label-sm text-outline">CO2 Impact</p>
+<p class="font-headline-sm text-headline-sm">Low</p>
+</div>
+</div>
+</div>
+<!-- Lane Data Table -->
+<div class="lg:w-2/4">
+<div class="flex items-center justify-between mb-md">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase">Approaches / Lane Data</p>
+<button class="text-primary font-label-md text-label-md flex items-center gap-1">View Timeline <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+</div>
+<div class="max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant rounded">
+<table class="w-full text-left text-body-sm">
+<thead class="bg-surface-container sticky top-0">
+<tr>
+<th class="px-md py-2 border-b border-outline-variant">Lane ID</th>
+<th class="px-md py-2 border-b border-outline-variant">Flow (veh/h)</th>
+<th class="px-md py-2 border-b border-outline-variant">Capacity</th>
+<th class="px-md py-2 border-b border-outline-variant">Occupancy</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="px-md py-2 font-data-mono">L1_EAST</td>
+<td class="px-md py-2 font-data-mono">420</td>
+<td class="px-md py-2">
+<div class="w-full bg-surface-container-high rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-full" style="width: 75%"></div>
+</div>
+</td>
+<td class="px-md py-2 text-primary font-bold">75%</td>
+</tr>
+<tr>
+<td class="px-md py-2 font-data-mono">L2_EAST</td>
+<td class="px-md py-2 font-data-mono">310</td>
+<td class="px-md py-2">
+<div class="w-full bg-surface-container-high rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-full" style="width: 45%"></div>
+</div>
+</td>
+<td class="px-md py-2">45%</td>
+</tr>
+<tr>
+<td class="px-md py-2 font-data-mono">L1_WEST</td>
+<td class="px-md py-2 font-data-mono">215</td>
+<td class="px-md py-2">
+<div class="w-full bg-surface-container-high rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-full" style="width: 22%"></div>
+</div>
+</td>
+<td class="px-md py-2">22%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interactions for table rows
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', () => {
+                // Remove primary highlight from all rows
+                document.querySelectorAll('tbody tr').forEach(r => {
+                    r.classList.remove('bg-primary-container/5', 'border-l-4', 'border-l-primary');
+                    const idCell = r.querySelector('td:first-child');
+                    if(idCell) idCell.classList.replace('text-primary', 'text-on-surface');
+                });
+                // Add highlight to selected row
+                row.classList.add('bg-primary-container/5', 'border-l-4', 'border-l-primary');
+                const selectedIdCell = row.querySelector('td:first-child');
+                if(selectedIdCell) selectedIdCell.classList.replace('text-on-surface', 'text-primary');
+                
+                const junctionId = selectedIdCell ? selectedIdCell.innerText : 'N/A';
+                const detailHeading = document.querySelector('h2');
+                if(detailHeading) detailHeading.innerText = 'Selected Junction: ' + junctionId;
+            });
+        });
+
+        // Simulating live data update for the timestamp
+        setInterval(() => {
+            const timeElements = document.querySelectorAll('tbody td:last-child');
+            const clockElement = document.getElementById('simulation-clock');
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
+                            now.getMinutes().toString().padStart(2, '0') + ':' + 
+                            now.getSeconds().toString().padStart(2, '0');
+            
+            if(timeElements.length > 0) timeElements[0].innerText = timeStr;
+            if(clockElement) clockElement.innerText = timeStr;
+        }, 1000);
+    </script>
+
+
+
+
+<script src="script.js"></script>
+</body></html>

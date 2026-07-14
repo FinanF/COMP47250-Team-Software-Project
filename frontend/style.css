@@ -1,0 +1,22 @@
+:root {
+  --dt-primary: #003d9b;
+  --dt-bg: #f7f9fb;
+  --dt-border: #c3c6d6;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--dt-bg); }
+a { text-decoration: none; }
+.material-symbols-outlined {
+  line-height: 1;
+  vertical-align: middle;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--dt-border);
+  border-radius: 9999px;
+}
+@media (max-width: 900px) {
+  header nav { gap: 10px !important; }
+}
