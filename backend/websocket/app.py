@@ -1,6 +1,8 @@
+import os
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
@@ -8,6 +10,13 @@ from backend.simulation.sumo_worker import sumo_worker, pending_changes, \
     build_signal_program
 from diagnostic.diagnostic_worker import diagnostic_worker
 from optimisation.optimisation_worker import optimisation_worker
+
+from sqlalchemy import create_engine,select
+
+load_dotenv()
+POSTGRES_USER=os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD=os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB=os.getenv("POSTGRES_DB")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,7 +35,6 @@ shutdown_event = asyncio.Event()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting background workers...")
-
     sumo_task = asyncio.create_task(
         sumo_worker(
             traffic_queue=traffic_queue,
@@ -48,7 +56,6 @@ async def lifespan(app: FastAPI):
             recommendation_queue=recommendation_queue,
         )
     )
-
     try:
         yield
 
@@ -66,6 +73,31 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+try:
+    from sqlalchemy import (
+        Table, Column, Integer, String, Float,
+        DateTime, MetaData
+    )
+    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.sql import func
+
+    metadata = MetaData()
+    engine = create_engine(f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@database:5432/{POSTGRES_DB}")
+    accepted_recommendations = Table(
+        "accepted_recommendations",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("junction_id", String, nullable=False),
+        Column("pattern_type", String),
+        Column("severity_score", Float),
+        Column("improvement_pct", Float),
+        Column("accepted_at", DateTime, server_default=func.now())
+    )
+
+    metadata.create_all(engine)
+except Exception as e:
+    logger.exception(e)
 
 
 @app.get("/")
@@ -121,6 +153,16 @@ async def optimisation_ws(websocket: WebSocket):
                     continue
 
                 try:
+                    with engine.begin() as conn:
+                        conn.execute(
+                            accepted_recommendations.insert().values(
+                                junction_id=recommendation["junction_id"],
+                                pattern_type=recommendation["pattern_type"],
+                                severity_score=recommendation["severity_score"],
+                                improvement_pct=recommendation["improvement_pct"],
+                            )
+                        )
+
                     new_program = build_signal_program(
                         recommendation["junction_id"],
                         recommendation["new_phase_durations"]
@@ -160,3 +202,17 @@ async def optimisation_ws(websocket: WebSocket):
     finally:
         sender.cancel()
         receiver.cancel()
+
+@app.websocket("/logs")
+async def logs_ws(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            with engine.begin() as conn:
+                result=conn.execute(select(accepted_recommendations))
+                rows=result.fetchall()
+                data=[dict(row) for row in rows]
+                await websocket.send_json({"type": "accepted_recommendations", "data": data})
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        logger.info("Logs client disconnected.")
