@@ -1,0 +1,304 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Dublin Traffic AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary-fixed": "#380d00",
+                    "on-surface-variant": "#434654",
+                    "on-surface": "#191c1e",
+                    "error-container": "#ffdad6",
+                    "on-error-container": "#93000a",
+                    "background": "#f7f9fb",
+                    "surface-variant": "#e0e3e5",
+                    "outline-variant": "#c3c6d6",
+                    "tertiary-fixed-dim": "#ffb59b",
+                    "tertiary-container": "#a33500",
+                    "tertiary": "#7b2600",
+                    "on-tertiary-container": "#ffc6b2",
+                    "surface-container-high": "#e6e8ea",
+                    "on-tertiary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-on-surface": "#eff1f3",
+                    "secondary-fixed-dim": "#b7c7e5",
+                    "secondary": "#4f5f79",
+                    "surface": "#f7f9fb",
+                    "tertiary-fixed": "#ffdbcf",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-secondary-fixed": "#0a1c33",
+                    "on-primary-fixed": "#001848",
+                    "surface-tint": "#0c56d0",
+                    "primary-container": "#0052cc",
+                    "surface-container": "#eceef0",
+                    "primary-fixed": "#dae2ff",
+                    "on-tertiary-fixed-variant": "#812800",
+                    "on-secondary-container": "#53637e",
+                    "on-primary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "outline": "#737685",
+                    "on-error": "#ffffff",
+                    "on-primary-container": "#c4d2ff",
+                    "secondary-fixed": "#d5e3ff",
+                    "on-secondary-fixed-variant": "#384760",
+                    "secondary-container": "#d0e0ff",
+                    "surface-container-low": "#f2f4f6",
+                    "surface-dim": "#d8dadc",
+                    "surface-bright": "#f7f9fb",
+                    "on-primary-fixed-variant": "#0040a2",
+                    "primary-fixed-dim": "#b2c5ff",
+                    "primary": "#003d9b",
+                    "inverse-primary": "#b2c5ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "container-margin": "24px",
+                    "base": "4px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "title-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "data-mono": ["JetBrains Mono"],
+                    "title-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"]
+            },
+            "fontSize": {
+                    "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #f7f9fb; font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="text-on-background min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-xl">
+<a href="index.html" class="font-headline-sm text-headline-sm font-bold text-primary">Dublin Traffic AI</a>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="font-medium font-title-md text-title-md text-on-surface-variant hover:text-primary transition-colors duration-200" href="index.html">Dashboard</a>
+<a class="font-medium font-title-md text-title-md text-on-surface-variant hover:text-primary transition-colors duration-200" href="intersections.html">Intersections</a>
+<a class="font-medium font-title-md text-title-md text-on-surface-variant hover:text-primary transition-colors duration-200" href="analytics.html">Analytics</a>
+<a class="font-medium font-title-md text-title-md text-on-surface-variant hover:text-primary transition-colors duration-200" href="audit-log.html">Audit Log</a>
+</nav>
+</div>
+<div class="flex items-center gap-md"><div class="flex items-center bg-surface-container-high rounded-full px-3 py-1 gap-3">
+<div class="flex items-center gap-2 text-on-secondary-container text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        CONNECTED
+</div>
+<div class="h-4 border-l border-outline-variant"></div>
+<div class="flex items-center gap-1 text-primary font-data-mono text-body-sm">
+<span id="simulation-clock" class="">14:23:05</span>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all relative flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-surface-container-lowest"></span>
+</button>
+<a href="settings.html" class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all flex items-center justify-center"><span class="material-symbols-outlined">settings</span></a>
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md cursor-pointer border border-outline-variant">YW</div></div>
+</header>
+<!-- Main Content -->
+<main class="pt-24 px-container-margin pb-xl">
+<div class="max-w-6xl mx-auto">
+<header class="mb-xl">
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Operator Settings</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-base">Configure your environment and session parameters.</p>
+</header>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg">
+<!-- Section 1: Operator Login -->
+<section class="md:col-span-8 glass-panel rounded-xl p-lg shadow-sm">
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant pb-md">
+<span class="material-symbols-outlined text-primary">account_circle</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Operator Login</h3>
+</div>
+<div class="space-y-lg">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-lg">
+<div class="space-y-base">
+<label class="font-label-md text-label-md text-on-surface-variant block uppercase tracking-wider">Operator Name</label>
+<input class="w-full px-md py-sm border border-outline rounded-lg bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-body-md" placeholder="e.g. John Doe" type="text">
+</div>
+<div class="space-y-base">
+<label class="font-label-md text-label-md text-on-surface-variant block uppercase tracking-wider">Role</label>
+<select class="w-full px-md py-sm border border-outline rounded-lg bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-body-md appearance-none">
+<option>Traffic Manager</option>
+<option>System Admin</option>
+<option>Observer</option>
+</select>
+</div>
+</div>
+<div class="flex gap-md pt-md">
+<button class="px-xl py-sm bg-primary text-on-primary font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all">
+                                Login
+                            </button>
+<button class="px-xl py-sm bg-surface-variant text-on-surface-variant font-bold rounded-lg border border-outline-variant hover:bg-outline-variant/20 active:scale-95 transition-all">
+                                Logout
+                            </button>
+</div>
+</div>
+</section>
+<!-- Section 2: Current Session -->
+<section class="md:col-span-4 glass-panel rounded-xl p-lg shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant pb-md">
+<span class="material-symbols-outlined text-primary">info</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Current Session</h3>
+</div>
+<div class="space-y-md">
+<div class="p-md bg-primary-container/10 rounded-lg border border-primary/20">
+<span class="font-label-sm text-label-sm text-primary block uppercase mb-1">Status</span>
+<div class="flex items-center gap-sm">
+<span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+<span class="font-title-md text-title-md text-on-surface">Login Status: Active</span>
+</div>
+</div>
+<div class="space-y-xs pt-base">
+<p class="font-body-md text-body-md text-on-surface-variant">
+<span class="font-bold text-on-surface">Current Operator:</span> Admin_User_01
+                                </p>
+<p class="font-body-md text-body-md text-on-surface-variant">
+<span class="font-bold text-on-surface">Role:</span> System Admin
+                                </p>
+</div>
+</div>
+</div>
+<div class="mt-lg p-sm bg-surface-variant/30 rounded-lg flex items-center justify-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Session started 2h 14m ago</span>
+</div>
+</section>
+<!-- Section 3: System Info -->
+<section class="md:col-span-12 glass-panel rounded-xl p-lg shadow-sm">
+<div class="flex items-center gap-sm mb-lg border-b border-outline-variant pb-md">
+<span class="material-symbols-outlined text-primary">settings_ethernet</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">System Info</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">WebSocket URL</label>
+<code class="font-data-mono text-data-mono bg-surface-container px-md py-sm rounded-lg text-primary border border-outline-variant overflow-x-auto">ws://localhost:8000/ws</code>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Map Provider</label>
+<div class="flex items-center gap-sm px-md py-sm bg-surface-container rounded-lg border border-outline-variant">
+<span class="material-symbols-outlined text-on-surface-variant">layers</span>
+<span class="font-body-md text-body-md text-on-surface">OpenStreetMap</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Default City</label>
+<div class="flex items-center gap-sm px-md py-sm bg-surface-container rounded-lg border border-outline-variant">
+<span class="material-symbols-outlined text-on-surface-variant">location_city</span>
+<span class="font-body-md text-body-md text-on-surface">Dublin</span>
+</div>
+</div>
+</div>
+<div class="mt-lg pt-lg border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-md">
+<span class="px-sm py-xs bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded uppercase">System Healthy</span>
+<span class="px-sm py-xs bg-primary-container/20 text-primary text-[10px] font-bold rounded uppercase">v1.12.4 Stable</span>
+</div>
+<button class="flex items-center gap-xs font-label-md text-label-md text-primary hover:underline transition-all">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+                            Re-sync System
+                        </button>
+</div>
+</section>
+<!-- Visualization/Graphic Placeholder -->
+<section class="md:col-span-12 h-64 rounded-xl overflow-hidden border border-outline-variant relative">
+<div class="absolute inset-0 z-0 bg-inverse-surface"></div>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-gradient-to-t from-inverse-surface/80 to-transparent p-lg">
+<span class="material-symbols-outlined text-primary-fixed text-4xl mb-sm">map</span>
+<h4 class="font-headline-sm text-headline-sm">Dublin Area Simulation</h4>
+<p class="font-body-md text-body-md opacity-80 text-center max-w-lg">Advanced Sumo engine active. Monitoring 1,240 nodes and 3,150 edges in the Dublin metropolitan network.</p>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-surface-container-lowest border-t border-outline-variant flex justify-around items-center h-16 z-50">
+<button class="flex flex-col items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-bold">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined">map</span>
+<span class="text-[10px] font-bold">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="text-[10px] font-bold">Settings</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-on-surface-variant">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="text-[10px] font-bold">Profile</span>
+</button>
+</nav>
+<script>
+        // Simple micro-interactions
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (this.tagName === 'A' && this.getAttribute('href') === '#') e.preventDefault();
+                console.log('Interaction captured on:', this.innerText.trim() || 'Icon Button');
+            });
+        });
+    </script>
+
+
+
+
+
+
+
+
+<script src="script.js"></script>
+</body></html>
