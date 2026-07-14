@@ -1,0 +1,422 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Dublin Traffic AI</title>
+<!-- Fonts and Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .chart-container {
+            position: relative;
+            height: 240px;
+            width: 100%;
+        }
+        /* Custom scrollbar for high-density layouts */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2d3133",
+                        "on-tertiary-fixed": "#380d00",
+                        "on-surface-variant": "#434654",
+                        "on-surface": "#191c1e",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "background": "#f7f9fb",
+                        "surface-variant": "#e0e3e5",
+                        "outline-variant": "#c3c6d6",
+                        "tertiary-fixed-dim": "#ffb59b",
+                        "tertiary-container": "#a33500",
+                        "tertiary": "#7b2600",
+                        "on-tertiary-container": "#ffc6b2",
+                        "surface-container-high": "#e6e8ea",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#191c1e",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#eff1f3",
+                        "secondary-fixed-dim": "#b7c7e5",
+                        "secondary": "#4f5f79",
+                        "surface": "#f7f9fb",
+                        "tertiary-fixed": "#ffdbcf",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-secondary-fixed": "#0a1c33",
+                        "on-primary-fixed": "#001848",
+                        "surface-tint": "#0c56d0",
+                        "primary-container": "#0052cc",
+                        "surface-container": "#eceef0",
+                        "primary-fixed": "#dae2ff",
+                        "on-tertiary-fixed-variant": "#812800",
+                        "on-secondary-container": "#53637e",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "outline": "#737685",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#c4d2ff",
+                        "secondary-fixed": "#d5e3ff",
+                        "on-secondary-fixed-variant": "#384760",
+                        "secondary-container": "#d0e0ff",
+                        "surface-container-low": "#f2f4f6",
+                        "surface-dim": "#d8dadc",
+                        "surface-bright": "#f7f9fb",
+                        "on-primary-fixed-variant": "#0040a2",
+                        "primary-fixed-dim": "#b2c5ff",
+                        "primary": "#003d9b",
+                        "inverse-primary": "#b2c5ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "container-margin": "24px",
+                        "base": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "title-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "title-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                        "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-xl">
+<a href="index.html" class="font-headline-sm text-headline-sm font-bold text-primary">Dublin Traffic AI</a>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant font-medium font-title-md text-title-md hover:text-primary transition-colors duration-200" href="index.html">Dashboard</a>
+<a class="text-on-surface-variant font-medium font-title-md text-title-md hover:text-primary transition-colors duration-200" href="intersections.html">Intersections</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-title-md text-title-md" href="analytics.html">Analytics</a>
+<a class="text-on-surface-variant font-medium font-title-md text-title-md hover:text-primary transition-colors duration-200" href="audit-log.html">Audit Log</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<div class="flex items-center bg-surface-container-high rounded-full px-3 py-1 gap-3">
+<div class="flex items-center gap-2 text-on-secondary-container text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        CONNECTED
+</div>
+<div class="h-4 border-l border-outline-variant"></div>
+<div class="flex items-center gap-1 text-primary font-data-mono text-body-sm">
+<span id="simulation-clock" class="">08:42:15</span>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all relative flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-surface-container-lowest"></span>
+</button>
+<a href="settings.html" class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all flex items-center justify-center"><span class="material-symbols-outlined">settings</span></a>
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md cursor-pointer border border-outline-variant">
+                YW
+            </div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="pt-16 min-h-screen">
+<div class="p-container-margin max-w-7xl mx-auto">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-xl gap-md">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Analytics</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl mt-sm">
+                        Performance metrics for the Dublin metropolitan area. Evaluating AI signal timing efficacy across 28 active junctions using real-time sensor fusion and SUMO simulation modeling.
+                    </p>
+</div>
+<div class="flex gap-sm">
+<button class="bg-white border border-outline-variant rounded-xl px-md py-sm flex items-center gap-sm text-on-surface hover:bg-surface-container-low transition-colors shadow-sm">
+<span class="material-symbols-outlined text-primary">calendar_today</span>
+<span class="font-label-md text-label-md">Last 24 Hours</span>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+<button class="bg-primary text-on-primary rounded-xl px-lg py-sm flex items-center gap-sm font-bold shadow-md hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined">download</span>
+<span class="">Export Report</span>
+</button>
+</div>
+</div>
+<!-- KPI Cards Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-gutter mb-xl">
+<!-- Card 1 -->
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<div class="flex justify-between items-start mb-md">
+<div class="p-base bg-secondary-container rounded-lg">
+<span class="material-symbols-outlined text-primary">avg_pace</span>
+</div>
+<span class="text-error font-bold flex items-center gap-1 font-label-md text-label-md">
+<span class="material-symbols-outlined text-sm">trending_up</span> 12%
+                        </span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Average Waiting Time</p>
+<h2 class="font-headline-md text-headline-md text-on-surface mt-base">42.5s</h2>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<div class="flex justify-between items-start mb-md">
+<div class="p-base bg-secondary-container rounded-lg">
+<span class="material-symbols-outlined text-primary">leaderboard</span>
+</div>
+<span class="text-primary font-bold flex items-center gap-1 font-label-md text-label-md">
+<span class="material-symbols-outlined text-sm">trending_down</span> 8%
+                        </span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Queue Length</p>
+<h2 class="font-headline-md text-headline-md text-on-surface mt-base">1,248m</h2>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<div class="flex justify-between items-start mb-md">
+<div class="p-base bg-error-container rounded-lg">
+<span class="material-symbols-outlined text-error">traffic</span>
+</div>
+<span class="text-error font-bold flex items-center gap-1 font-label-md text-label-md">
+                            +2 Since 08:00
+                        </span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Congested Junctions</p>
+<h2 class="font-headline-md text-headline-md text-on-surface mt-base">28</h2>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-primary text-on-primary p-lg rounded-xl flex flex-col justify-between shadow-lg">
+<div class="flex justify-between items-start mb-md">
+<div class="p-base bg-white/20 rounded-lg">
+<span class="material-symbols-outlined text-on-primary">bolt</span>
+</div>
+<span class="bg-white/20 px-2 py-1 rounded font-bold font-label-md text-label-md text-on-primary">
+                            AI ACTIVE
+                        </span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-white/70 uppercase tracking-wider">Efficiency Gain</p>
+<h2 class="font-headline-md text-headline-md text-white mt-base">+18.4%</h2>
+</div>
+</div>
+</div>
+<!-- Visualization Grid -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Line Chart: Waiting Time Trend -->
+<div class="col-span-12 lg:col-span-8 bg-white border border-outline-variant rounded-xl overflow-hidden flex flex-col shadow-sm">
+<div class="px-lg py-md border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-title-md text-title-md text-on-surface">Waiting Time Trend over simulation time</h3>
+<div class="flex gap-sm">
+<span class="flex items-center gap-1 font-label-md text-label-md text-on-surface-variant">
+<span class="w-3 h-3 rounded-full bg-primary"></span> Waiting Time
+                            </span>
+</div>
+</div>
+<div class="p-lg flex-1">
+<div class="chart-container">
+<canvas id="trendChart" width="958" height="300" style="display: block; box-sizing: border-box; height: 240px; width: 766.4px;"></canvas>
+</div>
+</div>
+</div>
+<!-- Horizontal Bar Chart: Top Congested -->
+<div class="col-span-12 lg:col-span-4 bg-white border border-outline-variant rounded-xl flex flex-col shadow-sm">
+<div class="px-lg py-md border-b border-outline-variant">
+<h3 class="font-title-md text-title-md text-on-surface">Top 5 Congested Junctions</h3>
+</div>
+<div class="p-lg flex-1 flex flex-col justify-center">
+<div class="chart-container">
+<canvas id="topJunctionsChart" width="438" height="300" style="display: block; box-sizing: border-box; height: 240px; width: 350.4px;"></canvas>
+</div>
+</div>
+</div>
+<!-- Grouped Bar: Queue Length Before vs After -->
+<div class="col-span-12 md:col-span-6 bg-white border border-outline-variant rounded-xl shadow-sm">
+<div class="px-lg py-md border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-title-md text-title-md text-on-surface">Before vs After Queue Length</h3>
+<span class="font-label-md text-label-md text-primary font-bold">METERS</span>
+</div>
+<div class="p-lg">
+<div class="chart-container">
+<canvas id="queueBeforeAfterChart" width="698" height="300" style="display: block; box-sizing: border-box; height: 240px; width: 558.4px;"></canvas>
+</div>
+</div>
+</div>
+<!-- Grouped Bar: Waiting Time Before vs After -->
+<div class="col-span-12 md:col-span-6 bg-white border border-outline-variant rounded-xl shadow-sm">
+<div class="px-lg py-md border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-title-md text-title-md text-on-surface">Before vs After Waiting Time</h3>
+<span class="font-label-md text-label-md text-primary font-bold">SECONDS</span>
+</div>
+<div class="p-lg">
+<div class="chart-container">
+<canvas id="waitBeforeAfterChart" width="698" height="300" style="display: block; box-sizing: border-box; height: 240px; width: 558.4px;"></canvas>
+</div>
+</div>
+</div>
+<!-- Bottom Insight Panel -->
+<div class="col-span-12 bg-surface-container rounded-xl p-lg flex items-start gap-lg border border-outline-variant">
+<div class="bg-primary-container p-md rounded-full text-on-primary-container">
+<span class="material-symbols-outlined">auto_graph</span>
+</div>
+<div class="flex-1">
+<h4 class="font-title-md text-title-md text-on-surface mb-xs">Optimization Summary</h4>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                            Signal phase optimization at O'Connell St. and Parnell St. has resulted in a measurable reduction of localized congestion by 14%. Overall network efficiency across all 28 junctions has stabilized following the deployment of adaptive AI timing cycles at 07:45 UTC.
+                        </p>
+</div>
+<button class="whitespace-nowrap bg-white border border-outline-variant px-lg py-sm rounded-xl font-bold text-on-surface hover:bg-surface-container-low transition-all shadow-sm">
+                        View Recommendations
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Chart Configuration
+        const primaryColor = '#003d9b';
+        const errorColor = '#ba1a1a';
+        const fontStack = "'Inter', sans-serif";
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { grid: { color: '#eceef0' }, ticks: { font: { family: fontStack, size: 11 } } },
+                x: { grid: { display: false }, ticks: { font: { family: fontStack, size: 11 } } }
+            }
+        };
+
+        // 1. Trend Line Chart
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'],
+                datasets: [{
+                    label: 'Waiting Time',
+                    data: [35, 38, 52, 65, 48, 42, 40, 41, 45, 42],
+                    borderColor: primaryColor,
+                    backgroundColor: 'rgba(0, 61, 155, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: commonOptions
+        });
+
+        // 2. Horizontal Bar: Top Congested
+        new Chart(document.getElementById('topJunctionsChart'), {
+            type: 'bar',
+            data: {
+                labels: ['O\'Connell St.', 'Parnell St.', 'Dame St.', 'Custom House', 'Pearse St.'],
+                datasets: [{
+                    data: [85, 72, 68, 55, 42],
+                    backgroundColor: [errorColor, '#ef4444', '#f87171', '#fca5a5', '#fee2e2'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { display: false } },
+                    y: { grid: { display: false }, ticks: { font: { family: fontStack, size: 11, weight: 'bold' } } }
+                }
+            }
+        });
+
+        // 3. Queue Length Comparative
+        new Chart(document.getElementById('queueBeforeAfterChart'), {
+            type: 'bar',
+            data: {
+                labels: ['North', 'South', 'East', 'West'],
+                datasets: [
+                    { label: 'Before', data: [450, 620, 380, 510], backgroundColor: '#c3c6d6', borderRadius: 4 },
+                    { label: 'After', data: [310, 440, 320, 480], backgroundColor: primaryColor, borderRadius: 4 }
+                ]
+            },
+            options: commonOptions
+        });
+
+        // 4. Waiting Time Comparative
+        new Chart(document.getElementById('waitBeforeAfterChart'), {
+            type: 'bar',
+            data: {
+                labels: ['North', 'South', 'East', 'West'],
+                datasets: [
+                    { label: 'Before', data: [58, 74, 45, 62], backgroundColor: '#c3c6d6', borderRadius: 4 },
+                    { label: 'After', data: [42, 51, 38, 55], backgroundColor: primaryColor, borderRadius: 4 }
+                ]
+            },
+            options: commonOptions
+        });
+    </script>
+
+
+
+
+<script src="script.js"></script>
+</body></html>

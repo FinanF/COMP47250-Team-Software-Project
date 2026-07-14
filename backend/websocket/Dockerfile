@@ -19,7 +19,9 @@ ENV PATH=$SUMO_HOME/bin:$PATH
 COPY . /app
 
 # Install Python requirements
-RUN pip install --no-cache-dir fastapi uvicorn[standard] traci websockets
+COPY diagnostic/requirements_pinned.txt .
+RUN pip install -r requirements_pinned.txt
+RUN pip install fastapi uvicorn[standard] traci websockets
 
 # Set Python path so imports work
 ENV PYTHONPATH=/app

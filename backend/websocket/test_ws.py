@@ -1,36 +1,39 @@
 import asyncio
-import websockets
-import json
+
+from backend.simulation.sumo_worker import sumo_worker
+from backend.websocket.app import db_queue
+from diagnostic.diagnostic_worker import diagnostic_worker
+from diagnostic.rules import RuleBasedDetector
+from optimisation.optimisation_worker import optimisation_worker
+from optimisation.optimiser import TrafficSignalOptimiser
+traffic_queue = asyncio.Queue()
+event_queue = asyncio.Queue()
+recommendation_queue = asyncio.Queue()
+diagnostic_queue = asyncio.Queue()
+db_queue = asyncio.Queue()
+shutdown_event = asyncio.Event()
+
+sumo_task = asyncio.create_task(
+        sumo_worker(
+            traffic_queue=traffic_queue,
+            db_queue=db_queue,
+            shutdown_event=shutdown_event,
+        )
+)
+
+diagnostic_task = asyncio.create_task(
+        diagnostic_worker(
+            traffic_queue=diagnostic_queue,
+            event_queue=event_queue
+        )
+)
+
+optimisation_task = asyncio.create_task(
+        optimisation_worker(
+            event_queue=event_queue,
+            recommendation_queue=recommendation_queue
+        )
+)
 
 
-async def traffic():
-    traffic_light_uri = "ws://127.0.0.1:8000/traffic-lights"
-    async with websockets.connect(traffic_light_uri) as ws:
-        print("✓ Connected to WebSocket")
-        message_count = 0
-        try:
-            while True:
-                msg = await ws.recv()
-                data = json.loads(msg)
-                message_count += 1
-                print(data)
-                # Print key info from each message
-                print(f"\n📨 Message(Junction) #{message_count}")
-                print(f"   Timestamp: {data.get('timestamp')}s")
-                print(f"   Junctions: {data.get('junction_count')}")
-                print(f"   Status: {data.get('sim_status')}")
-
-                # Access junction data
-                junctions = data.get('junctions', [])
-                if junctions:
-                    first_junction = junctions[0]
-                    print(f"   First junction: {first_junction['id']}")
-                    print(f"   Approaches: {len(first_junction['approaches'])}")
-        except KeyboardInterrupt:
-            print(f"\n\nReceived {message_count} messages total")
-
-
-
-
-
-asyncio.run(traffic())
+print(recommendation_queue.get())

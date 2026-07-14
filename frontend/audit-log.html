@@ -1,0 +1,451 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Dublin Traffic AI</title>
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#ffc6b2",
+                    "secondary-fixed": "#d5e3ff",
+                    "on-secondary-fixed-variant": "#384760",
+                    "on-primary-container": "#c4d2ff",
+                    "surface-dim": "#d8dadc",
+                    "tertiary": "#7b2600",
+                    "on-tertiary-fixed": "#380d00",
+                    "primary-fixed-dim": "#b2c5ff",
+                    "surface-tint": "#0c56d0",
+                    "tertiary-container": "#a33500",
+                    "surface-container-low": "#f2f4f6",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-tertiary-fixed-variant": "#812800",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-primary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#ffdbcf",
+                    "on-surface": "#191c1e",
+                    "on-primary-fixed": "#001848",
+                    "secondary": "#4f5f79",
+                    "inverse-primary": "#b2c5ff",
+                    "primary-container": "#0052cc",
+                    "surface-container-high": "#e6e8ea",
+                    "on-tertiary": "#ffffff",
+                    "background": "#f7f9fb",
+                    "on-background": "#191c1e",
+                    "primary": "#003d9b",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#ffb59b",
+                    "outline-variant": "#c3c6d6",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-surface": "#2d3133",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#d0e0ff",
+                    "surface-container": "#eceef0",
+                    "on-secondary-fixed": "#0a1c33",
+                    "on-error-container": "#93000a",
+                    "on-surface-variant": "#434654",
+                    "surface-bright": "#f7f9fb",
+                    "outline": "#737685",
+                    "primary-fixed": "#dae2ff",
+                    "on-secondary": "#ffffff",
+                    "surface-variant": "#e0e3e5",
+                    "secondary-fixed-dim": "#b7c7e5",
+                    "on-secondary-container": "#53637e",
+                    "surface": "#f7f9fb",
+                    "on-primary-fixed-variant": "#0040a2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "container-margin": "24px",
+                    "lg": "24px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "label-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "title-lg": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "data-mono": ["JetBrains Mono"],
+                    "label-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "title-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "headline-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-xl">
+<a href="index.html" class="font-headline-sm text-headline-sm font-bold text-primary">Dublin Traffic AI</a>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="index.html">Dashboard</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="intersections.html">Intersections</a>
+<a class="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="analytics.html">Analytics</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-medium transition-colors duration-200" href="audit-log.html">Audit Log</a>
+</nav>
+</div>
+<div class="flex items-center gap-md"><div class="flex items-center bg-surface-container-high rounded-full px-3 py-1 gap-3">
+<div class="flex items-center gap-2 text-on-secondary-container text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        CONNECTED
+</div>
+<div class="h-4 border-l border-outline-variant"></div>
+<div class="flex items-center gap-1 text-primary font-data-mono text-body-sm">
+<span id="simulation-clock" class="">14:32:45</span>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all relative flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-surface-container-lowest"></span>
+</button>
+<a href="settings.html" class="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all flex items-center justify-center"><span class="material-symbols-outlined">settings</span></a>
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md cursor-pointer border border-outline-variant">
+                YW
+            </div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-20 px-container-margin pb-xl min-h-screen max-w-[1440px] mx-auto">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-lg gap-md">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Audit Log</h1>
+<p class="text-on-surface-variant font-body-lg mt-base">Records all operator decisions and measurable traffic outcomes.</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="flex items-center gap-sm px-lg py-sm bg-surface-container-highest text-on-surface font-title-md rounded-lg border border-outline-variant hover:bg-surface-variant transition-all">
+<span class="material-symbols-outlined">cloud_download</span>
+                    Download Export (.CSV)
+                </button>
+</div>
+</div>
+<!-- Filter Bar -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-md mb-lg bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Decision Status</label>
+<select class="bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm focus:ring-primary focus:border-primary text-body-md">
+<option>All Statuses</option>
+<option>Approved</option>
+<option>Rejected</option>
+<option>Pending</option>
+</select>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Junction ID</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">location_on</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-md py-sm focus:ring-primary focus:border-primary text-body-md" placeholder="e.g. J-742" type="text">
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Operator</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">person</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-md py-sm focus:ring-primary focus:border-primary text-body-md" placeholder="Search by name" type="text">
+</div>
+</div>
+<div class="flex items-end">
+<button class="w-full py-[10px] bg-secondary-container text-on-secondary-container rounded-lg font-title-md hover:opacity-90 transition-all">
+                    Reset Filters
+                </button>
+</div>
+</div>
+<!-- Data Table Container -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full border-collapse text-left">
+<thead>
+<tr class="bg-surface-container text-on-surface-variant border-b border-outline-variant">
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Time</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Operator</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Junction ID</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">AI Recommendation</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Decision</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap text-center">Queue (B/A)</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Outcome</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:32:11</td>
+<td class="px-lg py-md whitespace-nowrap">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-primary-fixed text-[10px] flex items-center justify-center font-bold text-primary">JD</div>
+<span class="font-medium text-on-surface">J. Doe</span>
+</div>
+</td>
+<td class="px-lg py-md font-medium text-primary">J-742</td>
+<td class="px-lg py-md italic text-on-surface-variant text-body-sm">+15s Green (Northbound)</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Approved</span>
+</td>
+<td class="px-lg py-md font-data-mono text-body-sm">
+<div class="flex items-center justify-center gap-base">
+<span class="text-on-surface-variant">42</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="text-primary font-bold">12</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-primary-container/20 text-primary text-label-md rounded-full font-bold">Improved</span>
+</td>
+<td class="px-lg py-md">
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:30:05</td>
+<td class="px-lg py-md whitespace-nowrap">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-secondary-fixed text-[10px] flex items-center justify-center font-bold text-secondary">AM</div>
+<span class="font-medium text-on-surface">A. Murphy</span>
+</div>
+</td>
+<td class="px-lg py-md font-medium text-primary">J-108</td>
+<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Pedestrian Delay Bypass</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-red-100 text-red-700 text-label-md rounded-full font-bold">Rejected</span>
+</td>
+<td class="px-lg py-md font-data-mono text-body-sm">
+<div class="flex items-center justify-center gap-base">
+<span class="text-on-surface-variant">18</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="text-on-surface">19</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-surface-variant text-on-surface-variant text-label-md rounded-full font-bold">No Change</span>
+</td>
+<td class="px-lg py-md">
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:28:44</td>
+<td class="px-lg py-md whitespace-nowrap">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-tertiary-fixed text-[10px] flex items-center justify-center font-bold text-tertiary">SR</div>
+<span class="font-medium text-on-surface">S. Ryan</span>
+</div>
+</td>
+<td class="px-lg py-md font-medium text-primary">J-991</td>
+<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Pulse-Gap Mode Active</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-blue-100 text-blue-700 text-label-md rounded-full font-bold">Pending</span>
+</td>
+<td class="px-lg py-md font-data-mono text-body-sm text-outline italic text-center">Calculating...</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-surface-variant text-outline text-label-md rounded-full font-bold">Pending</span>
+</td>
+<td class="px-lg py-md">
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:25:30</td>
+<td class="px-lg py-md whitespace-nowrap">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-primary-fixed text-[10px] flex items-center justify-center font-bold text-primary">JD</div>
+<span class="font-medium text-on-surface">J. Doe</span>
+</div>
+</td>
+<td class="px-lg py-md font-medium text-primary">J-402</td>
+<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Red-Clear Extension</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Approved</span>
+</td>
+<td class="px-lg py-md font-data-mono text-body-sm">
+<div class="flex items-center justify-center gap-base">
+<span class="text-on-surface-variant">5</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="text-red-600 font-bold">12</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-red-100 text-red-700 text-label-md rounded-full font-bold">Worsened</span>
+</td>
+<td class="px-lg py-md">
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:15:19</td>
+<td class="px-lg py-md whitespace-nowrap">
+<div class="flex items-center gap-sm">
+<div class="w-6 h-6 rounded-full bg-secondary-fixed text-[10px] flex items-center justify-center font-bold text-secondary">AM</div>
+<span class="font-medium text-on-surface">A. Murphy</span>
+</div>
+</td>
+<td class="px-lg py-md font-medium text-primary">J-555</td>
+<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Emergency Override: EMS</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Approved</span>
+</td>
+<td class="px-lg py-md font-data-mono text-body-sm">
+<div class="flex items-center justify-center gap-base">
+<span class="text-on-surface-variant">61</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span class="text-primary font-bold">34</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="px-sm py-1 bg-primary-container/20 text-primary text-label-md rounded-full font-bold">Improved</span>
+</td>
+<td class="px-lg py-md">
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer/Pagination -->
+<div class="bg-surface-container px-lg py-md flex items-center justify-between border-t border-outline-variant">
+<span class="text-body-sm text-on-surface-variant">Showing <span class="font-bold text-on-surface">1 - 5</span> of 1,284 records</span>
+<div class="flex items-center gap-sm">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-primary bg-primary text-on-primary font-bold text-body-sm">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all font-bold text-body-sm">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all font-bold text-body-sm">3</button>
+<span class="text-outline mx-1">...</span>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all font-bold text-body-sm">257</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- System Stats Cards (Asymmetric Bento) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg mt-xl">
+<div class="md:col-span-1 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm relative overflow-hidden group">
+<div class="relative z-10">
+<p class="font-label-md text-on-surface-variant uppercase tracking-widest mb-sm">AI Efficiency Score</p>
+<p class="text-headline-md font-bold text-primary">87.4%</p>
+<div class="flex items-center gap-xs mt-base text-green-600">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span class="text-body-sm font-medium">+2.1% from yesterday</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+<span class="material-symbols-outlined text-[120px]">precision_manufacturing</span>
+</div>
+</div>
+<div class="md:col-span-1 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm relative overflow-hidden group">
+<div class="relative z-10">
+<p class="font-label-md text-on-surface-variant uppercase tracking-widest mb-sm">Human Approvals</p>
+<p class="text-headline-md font-bold text-on-surface">1,024</p>
+<p class="text-body-sm text-on-surface-variant mt-base">92% Acceptance Rate</p>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+<span class="material-symbols-outlined text-[120px]">how_to_reg</span>
+</div>
+</div>
+<div class="md:col-span-1 bg-primary text-on-primary p-lg rounded-xl border border-primary shadow-sm relative overflow-hidden group">
+<div class="relative z-10">
+<p class="font-label-md opacity-80 uppercase tracking-widest mb-sm">Critical Events Logged</p>
+<p class="text-headline-md font-bold">12</p>
+<p class="text-body-sm opacity-80 mt-base">Requiring Manual Resolution</p>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500 text-white">
+<span class="material-symbols-outlined text-[120px]">warning</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Micro-interaction Scripts -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hover effect for table rows
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', () => {
+                    const icon = row.querySelector('.material-symbols-outlined.text-outline');
+                    if(icon) icon.classList.replace('text-outline', 'text-primary');
+                });
+                row.addEventListener('mouseleave', () => {
+                    const icon = row.querySelector('.material-symbols-outlined.text-primary');
+                    if(icon) icon.classList.replace('text-primary', 'text-outline');
+                });
+            });
+
+            // Simulate loading state on filters
+            const selects = document.querySelectorAll('select, input');
+            selects.forEach(el => {
+                el.addEventListener('change', () => {
+                    const table = document.querySelector('tbody');
+                    table.style.opacity = '0.5';
+                    table.style.transition = 'opacity 0.2s';
+                    setTimeout(() => {
+                        table.style.opacity = '1';
+                    }, 400);
+                });
+            });
+        });
+    </script>
+
+
+
+
+<script src="script.js"></script>
+</body></html>
