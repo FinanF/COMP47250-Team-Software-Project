@@ -4,6 +4,7 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 import traci
+import subprocess
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SUMO_BINARY = "sumo"
@@ -336,11 +337,16 @@ def apply_pending_changes():
     pending_changes.clear()
 
 
-async def sumo_worker(
-    traffic_queue: asyncio.Queue,
-    shutdown_event: asyncio.Event,
-    db_queue: asyncio.Queue | None = None
-):
+async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
+    global _db_queue_ref
+    _db_queue_ref = db_queue
+
+    try:
+        subprocess.run(["fuser", "-k", "8813/tcp"], capture_output=True, check=False)
+    except FileNotFoundError:
+        pass
+
+    await asyncio.sleep(0.5)
 
     print(f"[SIM] Starting SUMO — config: {SUMO_CONFIG}", file=sys.stderr)
     print(f"[SIM] SUMO_HOME: {os.environ.get('SUMO_HOME', 'NOT SET')}", file=sys.stderr)
@@ -354,8 +360,8 @@ async def sumo_worker(
             "-c", SUMO_CONFIG,
             "--no-warnings",
             "--duration-log.disable", "true",
-            "--step-length", str(STEP_LENGTH)
-        ])  # port=0 lets OS assign a free port — avoids restart conflicts
+            "--step-length", str(STEP_LENGTH),
+        ], port=8813)
     except Exception as e:
         print(f"[ERROR] traci.start() failed: {e}", file=sys.stderr)
         shutdown_event.set()

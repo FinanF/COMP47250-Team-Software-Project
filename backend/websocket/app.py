@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
         sumo_worker(
             traffic_queue=traffic_queue,
             shutdown_event=shutdown_event,
+            db_queue=db_queue,
         )
     )
 
