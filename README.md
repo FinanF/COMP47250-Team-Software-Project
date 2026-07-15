@@ -13,7 +13,7 @@ To deploy this project run
 ```
 To view the website connect to 
 ```bash
-  http://localhost:3000
+  http://localhost:5500
 ```
 
 ## WebSocket API Reference
