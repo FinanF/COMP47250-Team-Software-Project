@@ -21,6 +21,7 @@ POSTGRES_DB=os.getenv("POSTGRES_DB")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+sumo_output_queue = asyncio.Queue(maxsize=500)
 traffic_queue = asyncio.Queue(maxsize=500)
 diagnostic_queue = asyncio.Queue(maxsize=500)
 event_queue = asyncio.Queue(maxsize=500)
@@ -32,20 +33,43 @@ db_queue = asyncio.Queue(maxsize=100)
 shutdown_event = asyncio.Event()
 
 
+async def put_latest(queue: asyncio.Queue, message: dict):
+    if queue.full():
+        try:
+            queue.get_nowait()
+            queue.task_done()
+        except asyncio.QueueEmpty:
+            pass
+    queue.put_nowait(message)
+
+
+async def fanout_traffic_messages():
+    while True:
+        message = await sumo_output_queue.get()
+
+        await put_latest(traffic_queue, message)
+        if message.get("type") == "junction_state":
+            await put_latest(diagnostic_queue, message)
+
+        sumo_output_queue.task_done()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting background workers...")
     sumo_task = asyncio.create_task(
         sumo_worker(
-            traffic_queue=traffic_queue,
+            traffic_queue=sumo_output_queue,
             shutdown_event=shutdown_event,
             db_queue=db_queue,
         )
     )
 
+    fanout_task = asyncio.create_task(fanout_traffic_messages())
+
     diagnostic_task = asyncio.create_task(
         diagnostic_worker(
-            traffic_queue=traffic_queue,
+            traffic_queue=diagnostic_queue,
             event_queue=event_queue,
         )
     )
@@ -64,7 +88,7 @@ async def lifespan(app: FastAPI):
 
         shutdown_event.set()
 
-        tasks = [sumo_task, diagnostic_task, optimisation_task]
+        tasks = [sumo_task, fanout_task, diagnostic_task, optimisation_task]
 
         for task in tasks:
             task.cancel()

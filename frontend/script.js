@@ -32,6 +32,192 @@
 })();
 
 (function () {
+  const OPT_WS_URL = 'ws://localhost:8000/opt';
+  const RECONNECT_DELAY_MS = 3000;
+
+  let optSocket;
+  let optReconnectTimer;
+  let hasLiveRecommendations = false;
+  const recommendationJunctionNames = new Map();
+  const recommendations = new Map();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('recommendations-list')) {
+      connectOptimisationSocket();
+    }
+  });
+
+  function connectOptimisationSocket() {
+    clearTimeout(optReconnectTimer);
+    setOptimisationStatus('CONNECTING');
+
+    optSocket = new WebSocket(OPT_WS_URL);
+
+    optSocket.addEventListener('open', () => {
+      setOptimisationStatus('LIVE REVIEW');
+    });
+
+    optSocket.addEventListener('message', (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'recommendation' && message.data) {
+          addRecommendation(message.data);
+        }
+      } catch (error) {
+        console.error('Invalid optimisation message:', error);
+      }
+    });
+
+    optSocket.addEventListener('close', () => {
+      setOptimisationStatus('DISCONNECTED');
+      optReconnectTimer = setTimeout(connectOptimisationSocket, RECONNECT_DELAY_MS);
+    });
+
+    optSocket.addEventListener('error', () => {
+      setOptimisationStatus('DISCONNECTED');
+      optSocket.close();
+    });
+  }
+
+  function addRecommendation(recommendation) {
+    if (!recommendation.junction_id) return;
+
+    if (!hasLiveRecommendations) {
+      const list = document.getElementById('recommendations-list');
+      if (list) list.innerHTML = '';
+      hasLiveRecommendations = true;
+    }
+
+    recommendations.set(String(recommendation.junction_id), recommendation);
+    renderRecommendations();
+  }
+
+  function renderRecommendations() {
+    const list = document.getElementById('recommendations-list');
+    if (!list) return;
+
+    const items = Array.from(recommendations.values()).slice(-3).reverse();
+    list.innerHTML = items.map(createRecommendationCard).join('');
+
+    list.querySelectorAll('[data-decision]').forEach((button) => {
+      button.addEventListener('click', () => {
+        sendDecision(button.dataset.decision, button.dataset.junctionId);
+      });
+    });
+  }
+
+  function createRecommendationCard(recommendation) {
+    const rawJunctionId = String(recommendation.junction_id);
+    const junctionId = escapeHtml(rawJunctionId);
+    const displayJunctionId = getRecommendationJunctionName(rawJunctionId);
+    const title = `${displayJunctionId}: ${formatPattern(recommendation.pattern_type)}`;
+    const confidence = Math.round((Number(recommendation.severity_score) || 0) * 100);
+    const improvement = Number(recommendation.improvement_pct) || 0;
+    const explanation = escapeHtml(formatRecommendationText(
+      recommendation.explanation || 'Review the proposed signal timing change.',
+      rawJunctionId,
+      displayJunctionId
+    ));
+
+    return `
+      <article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20" data-junction-id="${junctionId}">
+        <div class="flex items-start justify-between gap-md mb-sm">
+          <div>
+            <h3 class="text-title-md font-bold">${escapeHtml(title)}</h3>
+            <p class="text-body-sm opacity-90 mt-1">${explanation}</p>
+          </div>
+          <span class="text-label-sm flex items-center gap-xs opacity-90 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>
+            Waiting for review
+          </span>
+        </div>
+        <div class="grid grid-cols-2 gap-md mb-md">
+          <div class="flex flex-col">
+            <span class="text-label-sm uppercase opacity-70 font-bold">Confidence</span>
+            <span class="text-title-lg font-data-mono">${confidence}%</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-label-sm uppercase opacity-70 font-bold">Est. Efficiency Gain</span>
+            <span class="text-title-lg font-data-mono text-green-300">+${improvement.toFixed(1)}%</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-sm">
+          <button data-decision="accept" data-junction-id="${junctionId}" class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
+            <span class="material-symbols-outlined text-[20px]">check_circle</span> Accept
+          </button>
+          <button data-decision="reject" data-junction-id="${junctionId}" class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
+            <span class="material-symbols-outlined text-[20px]">cancel</span> Decline
+          </button>
+        </div>
+      </article>
+    `;
+  }
+
+  function sendDecision(action, junctionId) {
+    if (!optSocket || optSocket.readyState !== WebSocket.OPEN) {
+      setOptimisationStatus('DISCONNECTED');
+      return;
+    }
+
+    optSocket.send(JSON.stringify({
+      action,
+      junction_id: junctionId
+    }));
+
+    markRecommendationReviewed(junctionId, action);
+  }
+
+  function markRecommendationReviewed(junctionId, action) {
+    const card = Array.from(document.querySelectorAll('[data-junction-id]'))
+      .find((item) => item.dataset.junctionId === junctionId);
+    if (!card) return;
+
+    const status = card.querySelector('span.whitespace-nowrap');
+    if (status) {
+      status.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>${action === 'accept' ? 'Accepted' : 'Declined'}`;
+    }
+
+    card.querySelectorAll('button').forEach((button) => {
+      button.disabled = true;
+      button.classList.add('opacity-60', 'cursor-not-allowed');
+    });
+  }
+
+  function setOptimisationStatus(status) {
+    const el = document.getElementById('opt-connection-text');
+    if (el) el.textContent = status;
+  }
+
+  function formatPattern(pattern) {
+    return String(pattern || 'Signal Timing Suggestion')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function getRecommendationJunctionName(rawJunctionId) {
+    if (!recommendationJunctionNames.has(rawJunctionId)) {
+      const nextNumber = recommendationJunctionNames.size + 1;
+      recommendationJunctionNames.set(rawJunctionId, `Junction ${String(nextNumber).padStart(2, '0')}`);
+    }
+    return recommendationJunctionNames.get(rawJunctionId);
+  }
+
+  function formatRecommendationText(text, rawJunctionId, displayJunctionId) {
+    return String(text).split(rawJunctionId).join(displayJunctionId);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+})();
+
+(function () {
   const WS_URL = 'ws://localhost:8000/traffic';
   const RECONNECT_DELAY_MS = 3000;
 
