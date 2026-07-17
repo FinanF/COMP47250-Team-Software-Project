@@ -4,7 +4,7 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 import traci
-import subprocess
+import subprocess, tempfile
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SUMO_BINARY = "sumo"
@@ -19,12 +19,27 @@ STEP_LENGTH = 0.5         # must match <step-length> in .sumocfg
 
 INJECT_CONGESTION = os.environ.get("INJECT_CONGESTION", "true").lower() == "true"
 
+DEMAND_PROFILE = os.environ.get("DEMAND_PROFILE", "normal")  # "low" | "normal" | "peak"
+
+DEMAND_ROUTES = {
+    "low":    "routes_low_routed.xml",
+    "normal": "routes.xml",
+    "peak":   "routes_peak_routed.xml",
+}
+
 pending_changes: dict = {}
 
 baseline_snapshots: dict = {}
 
 _last_green_time: dict = {}
 
+post_change_snapshots: dict = {}
+
+POST_CHANGE_MEASUREMENT_DELAY = 60  # steps — 30 sim-seconds at 0.5s step length
+
+_pending_measurements: dict = {}  # junction_id → step number when change was applied
+
+_db_queue_ref: asyncio.Queue | None = None
 
 def parse_junction_coordinates(net_xml_path: str) -> dict:
     coords = {}
@@ -56,6 +71,92 @@ def parse_junction_coordinates(net_xml_path: str) -> dict:
         print(f"[ERROR] Failed to parse {net_xml_path}: {e}", file=sys.stderr)
 
     return coords
+
+
+def schedule_post_change_measurement(junction_id: str, current_step: int):
+    measure_at_step = current_step + POST_CHANGE_MEASUREMENT_DELAY
+    _pending_measurements[junction_id] = measure_at_step
+    print(
+        f"[SIM] Post-change measurement for {junction_id} "
+        f"scheduled at step {measure_at_step}",
+        file=sys.stderr
+    )
+
+
+def check_pending_measurements(current_step: int):
+    due = [jid for jid, step in _pending_measurements.items()
+           if current_step >= step]
+
+    for junction_id in due:
+        del _pending_measurements[junction_id]
+        try:
+            controlled_links = traci.trafficlight.getControlledLinks(junction_id)
+            total_queue = 0
+            total_waiting = 0.0
+            lane_count = 0
+            seen_lanes = set()
+
+            for link_list in controlled_links:
+                if not link_list:
+                    continue
+                from_lane = link_list[0][0]
+                if from_lane in seen_lanes:
+                    continue
+                seen_lanes.add(from_lane)
+                total_queue += traci.lane.getLastStepHaltingNumber(from_lane)
+                total_waiting += traci.lane.getWaitingTime(from_lane)
+                lane_count += 1
+
+            post_change_snapshots[junction_id] = {
+                "measured_at_sim_time": round(traci.simulation.getTime(), 1),
+                "avg_queue_length": round(total_queue / max(lane_count, 1), 2),
+                "avg_waiting_time": round(total_waiting / max(lane_count, 1), 2),
+                "total_queue_length": total_queue,
+            }
+
+            # Compute actual improvement
+            baseline = baseline_snapshots.get(junction_id)
+            if baseline:
+                before_q = baseline["avg_queue_length"]
+                after_q  = post_change_snapshots[junction_id]["avg_queue_length"]
+                before_w = baseline["avg_waiting_time"]
+                after_w  = post_change_snapshots[junction_id]["avg_waiting_time"]
+
+                queue_reduction = round(
+                    ((before_q - after_q) / max(before_q, 0.1)) * 100, 1
+                )
+                wait_reduction = round(
+                    ((before_w - after_w) / max(before_w, 0.1)) * 100, 1
+                )
+
+                print(
+                    f"[SIM] ACTUAL IMPROVEMENT at {junction_id}: "
+                    f"queue {before_q} → {after_q} ({queue_reduction}% reduction) | "
+                    f"wait {before_w:.1f}s → {after_w:.1f}s ({wait_reduction}% reduction)",
+                    file=sys.stderr
+                )
+
+                # Emit to db_queue so Finan can store in OPERATOR_DECISION table
+                # This updates the actual_improvement field in the audit log
+                if _db_queue_ref is not None:
+                    try:
+                        _db_queue_ref.put_nowait({
+                            "type": "update_actual_improvement",
+                            "junction_id": junction_id,
+                            "queue_reduction_pct": queue_reduction,
+                            "wait_reduction_pct": wait_reduction,
+                            "before_avg_queue": before_q,
+                            "after_avg_queue": after_q,
+                            "before_avg_wait": before_w,
+                            "after_avg_wait": after_w,
+                            "measured_at": post_change_snapshots[junction_id]["measured_at_sim_time"]
+                        })
+                    except asyncio.QueueFull:
+                        pass
+
+        except Exception as e:
+            print(f"[WARN] Post-change measurement failed for {junction_id}: {e}",
+                  file=sys.stderr)
 
 
 async def seed_junction_table(db_queue: asyncio.Queue, net_xml_path: str) -> list:
@@ -321,6 +422,7 @@ def apply_pending_changes():
         return
 
     sim_time = traci.simulation.getTime()
+    current_step = round(sim_time / STEP_LENGTH)
 
     for junction_id, new_program in list(pending_changes.items()):
         # Capture baseline BEFORE applying
@@ -329,6 +431,7 @@ def apply_pending_changes():
             traci.trafficlight.setCompleteRedYellowGreenDefinition(
                 junction_id, new_program
             )
+            schedule_post_change_measurement(junction_id, current_step)
             print(f"[SIM] Applied new signal program to {junction_id}", file=sys.stderr)
         except Exception as e:
             print(f"[ERROR] Failed to apply change to {junction_id}: {e}",
@@ -353,6 +456,7 @@ async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
     print(f"[SIM] Config exists: {os.path.exists(SUMO_CONFIG)}", file=sys.stderr)
     print(f"[SIM] NET_XML exists: {os.path.exists(NET_XML)}", file=sys.stderr)
     print(f"[SIM] INJECT_CONGESTION: {INJECT_CONGESTION}", file=sys.stderr)
+    print(f"[SIM] DEMAND_PROFILE: {DEMAND_PROFILE}", file=sys.stderr)
 
     try:
         traci.start([
@@ -395,7 +499,7 @@ async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
 
             # Yield to event loop — keeps FastAPI responsive between steps
             await asyncio.sleep(0)
-
+            check_pending_measurements(step)
             sim_time = traci.simulation.getTime()
 
             # --- Vehicle positions (high frequency) ---

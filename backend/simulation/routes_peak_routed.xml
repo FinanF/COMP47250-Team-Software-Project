@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2026-07-17 12:28:50.214024 by Eclipse SUMO randomTrips.py v1.27.0
-<configuration>
-    <net-file value="dublin_sub.net.xml"/>
-    <output-trip-file value="routes_peak.xml"/>
-    <period value="0.8"/>
-</configuration>
--->
-
-<!-- generated on 2026-07-17T12:28:50.102083+00:00 by Eclipse SUMO duarouter 1.27.0
+<!-- generated on 2026-07-17T12:29:07.631713+00:00 by Eclipse SUMO duarouter 1.27.0
 <duarouterConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/duarouterConfiguration.xsd">
 
     <input>
@@ -17,23 +9,11 @@
     </input>
 
     <output>
-        <output-file value="routes.rou.xml"/>
-        <alternatives-output value="NUL"/>
+        <output-file value="routes_peak_routed.xml"/>
     </output>
 
-    <processing>
-        <routing-threads value="10"/>
-    </processing>
-
-    <time>
-        <begin value="0"/>
-        <end value="3600.0"/>
-    </time>
-
     <report>
-        <no-warnings value="true"/>
         <ignore-errors value="true"/>
-        <no-step-log value="true"/>
     </report>
 
 </duarouterConfiguration>
