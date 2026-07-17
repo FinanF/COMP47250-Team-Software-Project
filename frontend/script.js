@@ -160,7 +160,7 @@
     }
 
     optSocket.send(JSON.stringify({
-      action,
+      action: action,
       junction_id: junctionId
     }));
 
