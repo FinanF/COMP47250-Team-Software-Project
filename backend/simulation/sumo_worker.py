@@ -122,12 +122,13 @@ def check_pending_measurements(current_step: int):
                 before_w = baseline["avg_waiting_time"]
                 after_w  = post_change_snapshots[junction_id]["avg_waiting_time"]
 
-                queue_reduction = round(
-                    ((before_q - after_q) / max(before_q, 0.1)) * 100, 1
-                )
-                wait_reduction = round(
-                    ((before_w - after_w) / max(before_w, 0.1)) * 100, 1
-                )
+                if before_q < 0.5 and before_w < 1.0:
+                    print(f"[SIM] Skipping improvement calc for {junction_id} — baseline was near-zero "
+                          f"(change applied during quiet period)", file=sys.stderr)
+                    continue
+
+                queue_reduction = max(round(((before_q - after_q) / before_q) * 100, 1), -100.0)
+                wait_reduction = max(round(((before_w - after_w) / before_w) * 100, 1), -100.0)
 
                 print(
                     f"[SIM] ACTUAL IMPROVEMENT at {junction_id}: "
