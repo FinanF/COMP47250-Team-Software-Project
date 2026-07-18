@@ -20,24 +20,33 @@ accepted_recommendations = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("junction_id", String, nullable=False),
-    Column("pattern_type", String),
-    Column("severity_score", Float),
-    Column("improvement_pct", Float),
+    Column("queue_reduction_pct", Float),
+    Column("wait_reduction_pct", Float),
+    Column("before_avg_queue", Float),
+    Column("after_avg_queue", Float),
+    Column("before_avg_wait", Float),
+    Column("after_avg_wait", Float),
+    Column("measured_at", Float),
+
     Column("accepted_at", DateTime, server_default=func.now())
 )
-
 metadata.create_all(engine)
 
-def insert_audit(recommendation: dict):
+def insert_audit(recommendation: dict, ):
     with engine.begin() as conn:
         conn.execute(
             accepted_recommendations.insert().values(
                 junction_id=recommendation["junction_id"],
-                pattern_type=recommendation["pattern_type"],
-                severity_score=recommendation["severity_score"],
-                improvement_pct=recommendation["improvement_pct"],
+                queue_reduction_pct=recommendation["queue_reduction_pct"],
+                wait_reduction_pct=recommendation["wait_reduction_pct"],
+                before_avg_queue=recommendation["before_avg_queue"],
+                after_avg_queue=recommendation["after_avg_queue"],
+                before_avg_wait=recommendation["before_avg_wait"],
+                after_avg_wait=recommendation["after_avg_wait"],
+                measured_at=recommendation["measured_at"],
             )
         )
+    print(f"[DB]Inserted recommendation for junction {recommendation['junction_id']} into database.")
 
 def select_all_recommendations():
     with engine.begin() as conn:
@@ -51,3 +60,8 @@ def clear_recommendations():
                 "TRUNCATE TABLE accepted_recommendations RESTART IDENTITY;"
             )
         )
+
+async def db_worker(db_queue):
+    while True:
+        insert_audit(await db_queue.get())
+

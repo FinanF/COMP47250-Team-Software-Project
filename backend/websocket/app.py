@@ -5,7 +5,7 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
-from backend.database.db import insert_audit, select_all_recommendations, clear_recommendations
+from backend.database.db import select_all_recommendations, clear_recommendations, db_worker
 from backend.simulation.sumo_worker import sumo_worker, pending_changes, \
     build_signal_program
 from diagnostic.diagnostic_worker import diagnostic_worker
@@ -74,6 +74,12 @@ async def lifespan(app: FastAPI):
             recommendation_queue=recommendation_queue,
         )
     )
+
+    db_task = asyncio.create_task(
+        db_worker(
+            db_queue=db_queue
+        )
+    )
     try:
         yield
 
@@ -82,7 +88,7 @@ async def lifespan(app: FastAPI):
 
         shutdown_event.set()
 
-        tasks = [sumo_task, fanout_task, diagnostic_task, optimisation_task]
+        tasks = [sumo_task, fanout_task, diagnostic_task, optimisation_task,db_task]
 
         for task in tasks:
             task.cancel()
@@ -157,8 +163,6 @@ async def optimisation_ws(websocket: WebSocket):
                     logger.info(
                         f"Accepted recommendation for {junction_id}"
                     )
-                    insert_audit(recommendation)
-
                     # Remove after applying
                     del pending_recommendations[junction_id]
 
