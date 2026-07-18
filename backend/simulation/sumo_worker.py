@@ -122,10 +122,10 @@ def check_pending_measurements(current_step: int):
                 before_w = baseline["avg_waiting_time"]
                 after_w  = post_change_snapshots[junction_id]["avg_waiting_time"]
 
-                if before_q < 0.5 and before_w < 1.0:
-                    print(f"[SIM] Skipping improvement calc for {junction_id} — baseline was near-zero "
-                          f"(change applied during quiet period)", file=sys.stderr)
-                    continue
+                # if before_q < 0.5 and before_w < 1.0:
+                #     print(f"[SIM] Skipping improvement calc for {junction_id} — baseline was near-zero "
+                #           f"(change applied during quiet period)", file=sys.stderr)
+                #     continue
 
                 queue_reduction = max(round(((before_q - after_q) / before_q) * 100, 1), -100.0)
                 wait_reduction = max(round(((before_w - after_w) / before_w) * 100, 1), -100.0)
@@ -152,9 +152,10 @@ def check_pending_measurements(current_step: int):
                             "after_avg_wait": after_w,
                             "measured_at": post_change_snapshots[junction_id]["measured_at_sim_time"]
                         })
+                        print(f"[SIM] Emitted actual improvement for {junction_id} to db_queue", file=sys.stderr)
                     except asyncio.QueueFull:
+                        print(f"[WARN] db_queue full — could not emit actual improvement for {junction_id}",)
                         pass
-
         except Exception as e:
             print(f"[WARN] Post-change measurement failed for {junction_id}: {e}",
                   file=sys.stderr)
@@ -171,7 +172,7 @@ async def seed_junction_table(db_queue: asyncio.Queue, net_xml_path: str) -> lis
         try:
             lon, lat = traci.simulation.convertGeo(pos["x"], pos["y"])
             junctions.append({
-                "id": jid,
+                "junction_id": jid,
                 "lat": round(lat, 6),
                 "lng": round(lon, 6)
             })
@@ -523,12 +524,12 @@ async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
                     # invisible to the user at 1s update frequency
                     pass
 
-                print(
-                    f"[SIM] Vehicles | Step {step} | "
-                    f"Sim {sim_time:.1f}s | "
-                    f"{len(vehicles)} active vehicles",
-                    file=sys.stderr
-                )
+                # print(
+                #     f"[SIM] Vehicles | Step {step} | "
+                #     f"Sim {sim_time:.1f}s | "
+                #     f"{len(vehicles)} active vehicles",
+                #     file=sys.stderr
+                # )
 
             # --- Junction state (lower frequency) ---
             if step % EMIT_EVERY_N_STEPS == 0:
@@ -578,13 +579,13 @@ async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
                         file=sys.stderr
                     )
 
-                print(
-                    f"[SIM] Junctions | Step {step} | "
-                    f"Sim {sim_time:.1f}s | "
-                    f"{len(junctions)} junctions | "
-                    f"status={sim_status}",
-                    file=sys.stderr
-                )
+                # print(
+                #     f"[SIM] Junctions | Step {step} | "
+                #     f"Sim {sim_time:.1f}s | "
+                #     f"{len(junctions)} junctions | "
+                #     f"status={sim_status}",
+                #     file=sys.stderr
+                # )
 
         print(
             f"[SIM] Simulation ended after {step} steps "

@@ -5,7 +5,8 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
-from backend.database.db import select_all_recommendations, clear_recommendations, db_worker
+from backend.database.db import select_all_recommendations, clear_recommendations, db_worker, select_all_junctions, \
+    select_audits_by_junction_id
 from backend.simulation.sumo_worker import sumo_worker, pending_changes, \
     build_signal_program
 from diagnostic.diagnostic_worker import diagnostic_worker
@@ -24,8 +25,6 @@ accepted_queue = asyncio.Queue(maxsize=500)
 
 db_queue = asyncio.Queue(maxsize=100)
 shutdown_event = asyncio.Event()
-
-clear_recommendations()
 
 async def put_latest(queue: asyncio.Queue, message: dict):
     if queue.full():
@@ -159,7 +158,6 @@ async def optimisation_ws(websocket: WebSocket):
                     )
 
                     pending_changes[junction_id] = new_program
-
                     logger.info(
                         f"Accepted recommendation for {junction_id}"
                     )
@@ -197,5 +195,25 @@ async def get_logs():
     data = select_all_recommendations()
     return {
         "type": "accepted_recommendations",
+        "data": jsonable_encoder(data)
+    }
+
+@app.get("/junctions")
+async def get_junctions():
+    data = select_all_junctions()
+    return {
+        "type": "junctions",
+        "data": jsonable_encoder(data)
+    }
+
+@app.delete("/del_logs")
+async def delete_logs():
+    clear_recommendations()
+
+@app.get("/logs_junctions")
+async def get_logs_junctions(junction_id: int):
+    data = select_audits_by_junction_id(junction_id)
+    return {
+        "type": "accepted_recommendations_by_junction_id",
         "data": jsonable_encoder(data)
     }
