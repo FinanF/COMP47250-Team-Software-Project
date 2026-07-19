@@ -162,14 +162,15 @@ async def optimisation_ws(websocket: WebSocket):
                     continue
 
                 try:
+                    junction_id=recommendation["junction_id"]
                     new_program = build_signal_program(
-                        recommendation["junction_id"],
+                        junction_id,
                         recommendation["new_phase_durations"]
                     )
 
-                    pending_changes[recommendation_id] = new_program
+                    pending_changes[junction_id] = new_program
                     logger.info(
-                        f"Accepted recommendation for {recommendation_id}"
+                        f"Accepted recommendation for {recommendation_id} at junction {junction_id}"
                     )
                     # Remove after applying
                     del pending_recommendations[recommendation_id]
