@@ -35,7 +35,7 @@ _last_green_time: dict = {}
 
 post_change_snapshots: dict = {}
 
-POST_CHANGE_MEASUREMENT_DELAY = 60  # steps — 30 sim-seconds at 0.5s step length
+POST_CHANGE_MEASUREMENT_DELAY = 120  # steps — 30 sim-seconds at 0.5s step length
 
 _pending_measurements: dict = {}  # junction_id → step number when change was applied
 

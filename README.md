@@ -1,5 +1,5 @@
 
-# Web-based Human-in-the-Loop (HITL) AI System for Traffic Signal Optimisation 
+# <img height="30" width="30" src="https://www.ucd.ie/t4media/crest-ucd.svg" /> Web-based Human-in-the-Loop (HITL) AI System for Traffic Signal Optimisation 
 
 Traffic optimisation interface using Dublin city simulated traffic data.
 
@@ -56,47 +56,41 @@ The server periodically sends the current state of all simulated traffic junctio
 }
 ```
 
-#### Example Response
-
-```json
-...
-```
-
 #### Simulation Fields
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `type` | `string` | Message identifier (`junction_state`) |
-| `schema_version` | `string` | Version of the message schema |
-| `step` | `integer` | Current simulation step |
-| `timestamp` | `float` | Simulation timestamp in seconds |
-| `junction_count` | `integer` | Number of active junctions |
-| `sim_status` | `string` | Current simulation status |
-| `sim_time_remaining` | `float` | Remaining simulation time |
+| Field                | Type      | Description                           |
+|:---------------------|:----------|:--------------------------------------|
+| `type`               | `string`  | Message identifier (`junction_state`) |
+| `schema_version`     | `string`  | Version of the message schema         |
+| `step`               | `integer` | Current simulation step               |
+| `timestamp`          | `float`   | Simulation timestamp in seconds       |
+| `junction_count`     | `integer` | Number of active junctions            |
+| `sim_status`         | `string`  | Current simulation status             |
+| `sim_time_remaining` | `float`   | Remaining simulation time             |
 
 #### Junction Object
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `string` | Unique junction identifier |
-| `lat` | `float` | Latitude coordinate |
-| `lng` | `float` | Longitude coordinate |
-| `current_phase` | `integer` | Current traffic light phase |
-| `phase_duration_total` | `float` | Total phase duration |
-| `phase_duration_remaining` | `float` | Remaining phase duration |
-| `phase_duration_elapsed` | `float` | Elapsed phase duration |
-| `signal_state` | `string` | Current signal state |
+| Field                      | Type      | Description                 |
+|:---------------------------|:----------|:----------------------------|
+| `id`                       | `string`  | Unique junction identifier  |
+| `lat`                      | `float`   | Latitude coordinate         |
+| `lng`                      | `float`   | Longitude coordinate        |
+| `current_phase`            | `integer` | Current traffic light phase |
+| `phase_duration_total`     | `float`   | Total phase duration        |
+| `phase_duration_remaining` | `float`   | Remaining phase duration    |
+| `phase_duration_elapsed`   | `float`   | Elapsed phase duration      |
+| `signal_state`             | `string`  | Current signal state        |
 
 #### Approach Object
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `lane_id` | `string` | SUMO lane identifier |
-| `queue_length` | `integer` | Number of queued vehicles |
-| `waiting_time_avg` | `float` | Average waiting time |
-| `vehicle_count` | `integer` | Number of vehicles |
-| `green` | `boolean` | Lane currently has green |
-| `seconds_since_green` | `float` | Seconds since last green |
+| Field                 | Type      | Description               |
+|:----------------------|:----------|:--------------------------|
+| `lane_id`             | `string`  | SUMO lane identifier      |
+| `queue_length`        | `integer` | Number of queued vehicles |
+| `waiting_time_avg`    | `float`   | Average waiting time      |
+| `vehicle_count`       | `integer` | Number of vehicles        |
+| `green`               | `boolean` | Lane currently has green  |
+| `seconds_since_green` | `float`   | Seconds since last green  |
 
 ---
 
@@ -125,13 +119,13 @@ Provides real-time vehicle position and movement data.
 }
 ```
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `string` | Vehicle identifier |
-| `lat` | `float` | Latitude |
-| `lng` | `float` | Longitude |
-| `speed` | `float` | Speed |
-| `angle` | `float` | Heading |
+| Field     | Type     | Description             |
+|:----------|:---------|:------------------------|
+| `id`      | `string` | Vehicle identifier      |
+| `lat`     | `float`  | Latitude                |
+| `lng`     | `float`  | Longitude               |
+| `speed`   | `float`  | Speed                   |
+| `angle`   | `float`  | Heading                 |
 | `road_id` | `string` | Current road identifier |
 
 ---
@@ -158,23 +152,23 @@ The optimisation worker analyses congestion events and streams recommendations t
 
 #### Recommendation Fields
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `junction_id` | `string` | Junction requiring optimisation |
-| `pattern_type` | `string` | Detected congestion pattern |
-| `severity_score` | `float` | Confidence/severity score |
-| `old_cycle_length` | `float` | Current cycle length |
-| `new_cycle_length` | `float` | Proposed cycle length |
-| `old_phase_splits` | `object` | Existing green allocations |
-| `new_phase_splits` | `object` | Proposed green allocations |
-| `new_phase_durations` | `array<float>` | Proposed phase durations |
-| `before_max_queue` | `integer` | Current maximum queue |
-| `after_est_queue` | `float` | Estimated queue after optimisation |
-| `before_avg_wait` | `float` | Current average wait |
-| `after_est_wait` | `float` | Estimated average wait |
-| `improvement_pct` | `float` | Estimated improvement |
-| `explanation` | `string` | Human-readable explanation |
-| `created_at` | `string` | Recommendation timestamp |
+| Field                 | Type           | Description                        |
+|:----------------------|:---------------|:-----------------------------------|
+| `junction_id`         | `string`       | Junction requiring optimisation    |
+| `pattern_type`        | `string`       | Detected congestion pattern        |
+| `severity_score`      | `float`        | Confidence/severity score          |
+| `old_cycle_length`    | `float`        | Current cycle length               |
+| `new_cycle_length`    | `float`        | Proposed cycle length              |
+| `old_phase_splits`    | `object`       | Existing green allocations         |
+| `new_phase_splits`    | `object`       | Proposed green allocations         |
+| `new_phase_durations` | `array<float>` | Proposed phase durations           |
+| `before_max_queue`    | `integer`      | Current maximum queue              |
+| `after_est_queue`     | `float`        | Estimated queue after optimisation |
+| `before_avg_wait`     | `float`        | Current average wait               |
+| `after_est_wait`      | `float`        | Estimated average wait             |
+| `improvement_pct`     | `float`        | Estimated improvement              |
+| `explanation`         | `string`       | Human-readable explanation         |
+| `created_at`          | `string`       | Recommendation timestamp           |
 
 ### Operator Response
 
@@ -200,10 +194,10 @@ or
 
 #### Fields
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `action` | `string` | `accept` or `reject` |
-| `junction_id` | `string` | Junction identifier |
+| Field         | Type     | Description          |
+|:--------------|:---------|:---------------------|
+| `action`      | `string` | `accept` or `reject` |
+| `junction_id` | `string` | Junction identifier  |
 
 ## REST API
 
@@ -278,8 +272,8 @@ GET /logs_junctions?junction_id=1396454306
 
 #### Query Parameters
 
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
+| Parameter     | Type     | Description         |
+|:--------------|:---------|:--------------------|
 | `junction_id` | `string` | Junction identifier |
 
 #### Response
@@ -328,11 +322,11 @@ The application uses PostgreSQL to persist static junction metadata and maintain
 
 Stores the geographical information for each signalised junction in the SUMO road network. This table is populated during system initialisation and serves as a reference for mapping and reporting.
 
-| Column | Type | Description |
-| :--- | :--- | :--- |
+| Column        | Type     | Description                                              |
+|:--------------|:---------|:---------------------------------------------------------|
 | `junction_id` | `string` | Unique identifier of the traffic junction (Primary Key). |
-| `lat` | `float` | Latitude of the junction. |
-| `lng` | `float` | Longitude of the junction. |
+| `lat`         | `float`  | Latitude of the junction.                                |
+| `lng`         | `float`  | Longitude of the junction.                               |
 
 ---
 
@@ -340,21 +334,22 @@ Stores the geographical information for each signalised junction in the SUMO roa
 
 Stores an audit record for every optimisation recommendation accepted by the operator. After a recommendation is applied, the system measures the resulting traffic performance and records both the baseline and post-optimisation metrics.
 
-| Column | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `integer` | Unique record identifier (Primary Key). |
-| `junction_id` | `string` | Identifier of the junction where the optimisation was applied. |
-| `queue_reduction_pct` | `float` | Measured percentage reduction in average queue length. |
-| `wait_reduction_pct` | `float` | Measured percentage reduction in average vehicle waiting time. |
-| `before_avg_queue` | `float` | Average queue length before applying the optimisation. |
-| `after_avg_queue` | `float` | Average queue length after applying the optimisation. |
-| `before_avg_wait` | `float` | Average vehicle waiting time before optimisation (seconds). |
-| `after_avg_wait` | `float` | Average vehicle waiting time after optimisation (seconds). |
-| `measured_at` | `float` | Simulation timestamp when the post-optimisation measurements were recorded. |
-| `accepted_at` | `datetime` | Timestamp when the recommendation was accepted and logged. Automatically generated by the database. |
-### Authors
+|        Column         | Type       | Description                                                                                         |
+|:---------------------:|:-----------|:----------------------------------------------------------------------------------------------------|
+|         `id`          | `integer`  | Unique record identifier (Primary Key).                                                             |
+|     `junction_id`     | `string`   | Identifier of the junction where the optimisation was applied.                                      |
+| `queue_reduction_pct` | `float`    | Measured percentage reduction in average queue length.                                              |
+| `wait_reduction_pct`  | `float`    | Measured percentage reduction in average vehicle waiting time.                                      |
+|  `before_avg_queue`   | `float`    | Average queue length before applying the optimisation.                                              |
+|   `after_avg_queue`   | `float`    | Average queue length after applying the optimisation.                                               |
+|   `before_avg_wait`   | `float`    | Average vehicle waiting time before optimisation (seconds).                                         |
+|   `after_avg_wait`    | `float`    | Average vehicle waiting time after optimisation (seconds).                                          |
+|     `measured_at`     | `float`    | Simulation timestamp when the post-optimisation measurements were recorded.                         |
+|     `accepted_at`     | `datetime` | Timestamp when the recommendation was accepted and logged. Automatically generated by the database. |
 
-- [Yang Ruhao](https://github.com/YangRuhao)
+## Authors
+
+- [Ruhao Yang](https://github.com/YangRuhao)
 - [Princeton Jose](https://github.com/princetonjose17-dotcom)
-- [Kiri Wang](https://github.com/KiriWang2002)
-- [FinanF](https://github.com/FinanF)
+- [Yuyao Wang](https://github.com/KiriWang2002)
+- [Finan Fagan](https://github.com/FinanF)

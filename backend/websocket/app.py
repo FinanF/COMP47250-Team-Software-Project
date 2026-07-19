@@ -125,9 +125,9 @@ async def optimisation_ws(websocket: WebSocket):
         while True:
             recommendation = await recommendation_queue.get()
 
-            junction_id = recommendation["junction_id"]
+            recommendation_id=recommendation.get("recommendation_id")
 
-            pending_recommendations[junction_id] = recommendation
+            pending_recommendations[recommendation_id] = recommendation
             await websocket.send_json({
                 "type": "recommendation",
                 "data": recommendation
@@ -138,31 +138,31 @@ async def optimisation_ws(websocket: WebSocket):
             message = await websocket.receive_json()
 
             action = message.get("action")
-            junction_id = message.get("junction_id")
+            recommendation_id = message.get("recommendation_id")
 
             if action == "accept":
-                recommendation = pending_recommendations.get(junction_id)
+                recommendation = pending_recommendations.get(recommendation_id)
 
                 if recommendation is None:
                     logger.warning(
-                        f"No recommendation found for {junction_id}"
+                        f"No recommendation found for {recommendation_id}"
                     )
                     continue
 
                 try:
-
-
                     new_program = build_signal_program(
                         recommendation["junction_id"],
                         recommendation["new_phase_durations"]
                     )
 
-                    pending_changes[junction_id] = new_program
+                    pending_changes[recommendation_id] = new_program
                     logger.info(
-                        f"Accepted recommendation for {junction_id}"
+                        f"Accepted recommendation for {recommendation_id}"
                     )
                     # Remove after applying
-                    del pending_recommendations[junction_id]
+                    del pending_recommendations[recommendation_id]
+
+                    await websocket.send_json({"completed": recommendation_id})
 
                 except Exception as e:
                     logger.exception(
@@ -170,11 +170,12 @@ async def optimisation_ws(websocket: WebSocket):
                     )
 
             elif action == "reject":
-                pending_recommendations.pop(junction_id, None)
+                pending_recommendations.pop(recommendation_id, None)
 
                 logger.info(
-                    f"Rejected recommendation for {junction_id}"
+                    f"Rejected recommendation for {recommendation_id}"
                 )
+                await websocket.send_json({"completed": recommendation_id})
 
 
     sender = asyncio.create_task(send_recommendations())

@@ -14,6 +14,7 @@ so all TraCI logic stays in sumo_worker.py.
 
 import asyncio
 from optimisation.optimiser import TrafficSignalOptimiser
+import uuid
 
 
 async def optimisation_worker(
@@ -76,6 +77,7 @@ async def optimisation_worker(
 
             # Build dict for backend / frontend
             rec_dict = {
+                "recommendation_id": str(uuid.uuid4()),
                 "junction_id":        recommendation.junction_id,
                 "pattern_type":       recommendation.pattern_type,
                 "severity_score":     recommendation.severity_score,
