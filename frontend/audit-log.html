@@ -164,10 +164,10 @@
 <div class="flex flex-col md:flex-row md:items-end justify-between mb-lg gap-md">
 <div>
 <h1 class="font-headline-lg text-headline-lg text-on-surface">Audit Log</h1>
-<p class="text-on-surface-variant font-body-lg mt-base">Records all operator decisions and measurable traffic outcomes.</p>
+<p class="text-on-surface-variant font-body-lg mt-base">Accepted signal optimisations and their measured traffic outcomes.</p>
 </div>
 <div class="flex items-center gap-sm">
-<button class="flex items-center gap-sm px-lg py-sm bg-surface-container-highest text-on-surface font-title-md rounded-lg border border-outline-variant hover:bg-surface-variant transition-all">
+<button id="audit-export-button" class="flex items-center gap-sm px-lg py-sm bg-surface-container-highest text-on-surface font-title-md rounded-lg border border-outline-variant hover:bg-surface-variant transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
 <span class="material-symbols-outlined">cloud_download</span>
                     Download Export (.CSV)
                 </button>
@@ -176,30 +176,30 @@
 <!-- Filter Bar -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-md mb-lg bg-surface-container-lowest p-md rounded-xl border border-outline-variant shadow-sm">
 <div class="flex flex-col gap-xs">
-<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Decision Status</label>
-<select class="bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm focus:ring-primary focus:border-primary text-body-md">
-<option>All Statuses</option>
-<option>Approved</option>
-<option>Rejected</option>
-<option>Pending</option>
+<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Outcome</label>
+<select id="audit-outcome-filter" class="bg-surface-container-low border border-outline-variant rounded-lg px-md py-sm focus:ring-primary focus:border-primary text-body-md">
+<option value="all">All Outcomes</option>
+<option value="improved">Improved</option>
+<option value="worsened">Worsened</option>
+<option value="unchanged">No Change</option>
 </select>
 </div>
 <div class="flex flex-col gap-xs">
 <label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Junction ID</label>
 <div class="relative">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">location_on</span>
-<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-md py-sm focus:ring-primary focus:border-primary text-body-md" placeholder="e.g. J-742" type="text">
+<input id="audit-junction-filter" class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-md py-sm focus:ring-primary focus:border-primary text-body-md" placeholder="Enter junction ID" type="search">
 </div>
 </div>
 <div class="flex flex-col gap-xs">
-<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Operator</label>
+<label class="font-label-md text-on-surface-variant uppercase tracking-wider pl-1">Minimum Queue Reduction</label>
 <div class="relative">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">person</span>
-<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-md py-sm focus:ring-primary focus:border-primary text-body-md" placeholder="Search by name" type="text">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">percent</span>
+<input id="audit-reduction-filter" class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-md py-sm focus:ring-primary focus:border-primary text-body-md" placeholder="e.g. 10" min="0" step="1" type="number">
 </div>
 </div>
 <div class="flex items-end">
-<button class="w-full py-[10px] bg-secondary-container text-on-secondary-container rounded-lg font-title-md hover:opacity-90 transition-all">
+<button id="audit-reset-filters" class="w-full py-[10px] bg-secondary-container text-on-secondary-container rounded-lg font-title-md hover:opacity-90 transition-all">
                     Reset Filters
                 </button>
 </div>
@@ -211,181 +211,37 @@
 <thead>
 <tr class="bg-surface-container text-on-surface-variant border-b border-outline-variant">
 <th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Time</th>
-<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Operator</th>
 <th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Junction ID</th>
 <th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">AI Recommendation</th>
 <th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Decision</th>
 <th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap text-center">Queue (B/A)</th>
 <th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Outcome</th>
-<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Action</th>
+<th class="px-lg py-md font-label-md uppercase tracking-widest whitespace-nowrap">Measured At</th>
 </tr>
 </thead>
-<tbody class="divide-y divide-outline-variant">
-<!-- Row 1 -->
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:32:11</td>
-<td class="px-lg py-md whitespace-nowrap">
-<div class="flex items-center gap-sm">
-<div class="w-6 h-6 rounded-full bg-primary-fixed text-[10px] flex items-center justify-center font-bold text-primary">JD</div>
-<span class="font-medium text-on-surface">J. Doe</span>
-</div>
-</td>
-<td class="px-lg py-md font-medium text-primary">J-742</td>
-<td class="px-lg py-md italic text-on-surface-variant text-body-sm">+15s Green (Northbound)</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Approved</span>
-</td>
-<td class="px-lg py-md font-data-mono text-body-sm">
-<div class="flex items-center justify-center gap-base">
-<span class="text-on-surface-variant">42</span>
-<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-<span class="text-primary font-bold">12</span>
-</div>
-</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-primary-container/20 text-primary text-label-md rounded-full font-bold">Improved</span>
-</td>
-<td class="px-lg py-md">
-<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
-</td>
-</tr>
-<!-- Row 2 -->
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:30:05</td>
-<td class="px-lg py-md whitespace-nowrap">
-<div class="flex items-center gap-sm">
-<div class="w-6 h-6 rounded-full bg-secondary-fixed text-[10px] flex items-center justify-center font-bold text-secondary">AM</div>
-<span class="font-medium text-on-surface">A. Murphy</span>
-</div>
-</td>
-<td class="px-lg py-md font-medium text-primary">J-108</td>
-<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Pedestrian Delay Bypass</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-red-100 text-red-700 text-label-md rounded-full font-bold">Rejected</span>
-</td>
-<td class="px-lg py-md font-data-mono text-body-sm">
-<div class="flex items-center justify-center gap-base">
-<span class="text-on-surface-variant">18</span>
-<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-<span class="text-on-surface">19</span>
-</div>
-</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-surface-variant text-on-surface-variant text-label-md rounded-full font-bold">No Change</span>
-</td>
-<td class="px-lg py-md">
-<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
-</td>
-</tr>
-<!-- Row 3 -->
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:28:44</td>
-<td class="px-lg py-md whitespace-nowrap">
-<div class="flex items-center gap-sm">
-<div class="w-6 h-6 rounded-full bg-tertiary-fixed text-[10px] flex items-center justify-center font-bold text-tertiary">SR</div>
-<span class="font-medium text-on-surface">S. Ryan</span>
-</div>
-</td>
-<td class="px-lg py-md font-medium text-primary">J-991</td>
-<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Pulse-Gap Mode Active</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-blue-100 text-blue-700 text-label-md rounded-full font-bold">Pending</span>
-</td>
-<td class="px-lg py-md font-data-mono text-body-sm text-outline italic text-center">Calculating...</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-surface-variant text-outline text-label-md rounded-full font-bold">Pending</span>
-</td>
-<td class="px-lg py-md">
-<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
-</td>
-</tr>
-<!-- Row 4 -->
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:25:30</td>
-<td class="px-lg py-md whitespace-nowrap">
-<div class="flex items-center gap-sm">
-<div class="w-6 h-6 rounded-full bg-primary-fixed text-[10px] flex items-center justify-center font-bold text-primary">JD</div>
-<span class="font-medium text-on-surface">J. Doe</span>
-</div>
-</td>
-<td class="px-lg py-md font-medium text-primary">J-402</td>
-<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Red-Clear Extension</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Approved</span>
-</td>
-<td class="px-lg py-md font-data-mono text-body-sm">
-<div class="flex items-center justify-center gap-base">
-<span class="text-on-surface-variant">5</span>
-<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-<span class="text-red-600 font-bold">12</span>
-</div>
-</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-red-100 text-red-700 text-label-md rounded-full font-bold">Worsened</span>
-</td>
-<td class="px-lg py-md">
-<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
-</td>
-</tr>
-<!-- Row 5 -->
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">2023-10-27 14:15:19</td>
-<td class="px-lg py-md whitespace-nowrap">
-<div class="flex items-center gap-sm">
-<div class="w-6 h-6 rounded-full bg-secondary-fixed text-[10px] flex items-center justify-center font-bold text-secondary">AM</div>
-<span class="font-medium text-on-surface">A. Murphy</span>
-</div>
-</td>
-<td class="px-lg py-md font-medium text-primary">J-555</td>
-<td class="px-lg py-md italic text-on-surface-variant text-body-sm">Emergency Override: EMS</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Approved</span>
-</td>
-<td class="px-lg py-md font-data-mono text-body-sm">
-<div class="flex items-center justify-center gap-base">
-<span class="text-on-surface-variant">61</span>
-<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-<span class="text-primary font-bold">34</span>
-</div>
-</td>
-<td class="px-lg py-md">
-<span class="px-sm py-1 bg-primary-container/20 text-primary text-label-md rounded-full font-bold">Improved</span>
-</td>
-<td class="px-lg py-md">
-<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
-</td>
+<tbody id="audit-log-body" class="divide-y divide-outline-variant">
+<tr>
+<td colspan="7" class="px-lg py-xl text-center text-on-surface-variant">Loading audit records...</td>
 </tr>
 </tbody>
 </table>
 </div>
 <!-- Table Footer/Pagination -->
 <div class="bg-surface-container px-lg py-md flex items-center justify-between border-t border-outline-variant">
-<span class="text-body-sm text-on-surface-variant">Showing <span class="font-bold text-on-surface">1 - 5</span> of 1,284 records</span>
-<div class="flex items-center gap-sm">
-<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all">
-<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+<span id="audit-record-count" class="text-body-sm text-on-surface-variant">Loading records...</span>
+<button id="audit-refresh-button" class="flex items-center gap-xs px-md py-sm rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-variant transition-all">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+Refresh
 </button>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-primary bg-primary text-on-primary font-bold text-body-sm">1</button>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all font-bold text-body-sm">2</button>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all font-bold text-body-sm">3</button>
-<span class="text-outline mx-1">...</span>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all font-bold text-body-sm">257</button>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant transition-all">
-<span class="material-symbols-outlined text-[18px]">chevron_right</span>
-</button>
-</div>
 </div>
 </div>
 <!-- System Stats Cards (Asymmetric Bento) -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-lg mt-xl">
 <div class="md:col-span-1 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm relative overflow-hidden group">
 <div class="relative z-10">
-<p class="font-label-md text-on-surface-variant uppercase tracking-widest mb-sm">AI Efficiency Score</p>
-<p class="text-headline-md font-bold text-primary">87.4%</p>
-<div class="flex items-center gap-xs mt-base text-green-600">
-<span class="material-symbols-outlined text-[16px]">trending_up</span>
-<span class="text-body-sm font-medium">+2.1% from yesterday</span>
-</div>
+<p class="font-label-md text-on-surface-variant uppercase tracking-widest mb-sm">Average Queue Reduction</p>
+<p id="audit-average-queue-reduction" class="text-headline-md font-bold text-primary">--</p>
+<p class="text-body-sm text-on-surface-variant mt-base">Across measured optimisations</p>
 </div>
 <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
 <span class="material-symbols-outlined text-[120px]">precision_manufacturing</span>
@@ -393,9 +249,9 @@
 </div>
 <div class="md:col-span-1 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm relative overflow-hidden group">
 <div class="relative z-10">
-<p class="font-label-md text-on-surface-variant uppercase tracking-widest mb-sm">Human Approvals</p>
-<p class="text-headline-md font-bold text-on-surface">1,024</p>
-<p class="text-body-sm text-on-surface-variant mt-base">92% Acceptance Rate</p>
+<p class="font-label-md text-on-surface-variant uppercase tracking-widest mb-sm">Accepted Optimisations</p>
+<p id="audit-accepted-count" class="text-headline-md font-bold text-on-surface">--</p>
+<p class="text-body-sm text-on-surface-variant mt-base">Recorded by the backend</p>
 </div>
 <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
 <span class="material-symbols-outlined text-[120px]">how_to_reg</span>
@@ -403,9 +259,9 @@
 </div>
 <div class="md:col-span-1 bg-primary text-on-primary p-lg rounded-xl border border-primary shadow-sm relative overflow-hidden group">
 <div class="relative z-10">
-<p class="font-label-md opacity-80 uppercase tracking-widest mb-sm">Critical Events Logged</p>
-<p class="text-headline-md font-bold">12</p>
-<p class="text-body-sm opacity-80 mt-base">Requiring Manual Resolution</p>
+<p class="font-label-md opacity-80 uppercase tracking-widest mb-sm">Average Wait Reduction</p>
+<p id="audit-average-wait-reduction" class="text-headline-md font-bold">--</p>
+<p class="text-body-sm opacity-80 mt-base">Across measured optimisations</p>
 </div>
 <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500 text-white">
 <span class="material-symbols-outlined text-[120px]">warning</span>
@@ -413,39 +269,5 @@
 </div>
 </div>
 </main>
-<!-- Micro-interaction Scripts -->
-<script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Hover effect for table rows
-            const rows = document.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                row.addEventListener('mouseenter', () => {
-                    const icon = row.querySelector('.material-symbols-outlined.text-outline');
-                    if(icon) icon.classList.replace('text-outline', 'text-primary');
-                });
-                row.addEventListener('mouseleave', () => {
-                    const icon = row.querySelector('.material-symbols-outlined.text-primary');
-                    if(icon) icon.classList.replace('text-primary', 'text-outline');
-                });
-            });
-
-            // Simulate loading state on filters
-            const selects = document.querySelectorAll('select, input');
-            selects.forEach(el => {
-                el.addEventListener('change', () => {
-                    const table = document.querySelector('tbody');
-                    table.style.opacity = '0.5';
-                    table.style.transition = 'opacity 0.2s';
-                    setTimeout(() => {
-                        table.style.opacity = '1';
-                    }, 400);
-                });
-            });
-        });
-    </script>
-
-
-
-
 <script src="script.js"></script>
 </body></html>

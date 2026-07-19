@@ -218,6 +218,310 @@
 })();
 
 (function () {
+  const LOGS_API_URL = `http://${window.location.hostname || 'localhost'}:8000/logs`;
+
+  let auditRecords = [];
+  let visibleAuditRecords = [];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('audit-log-body')) return;
+
+    document.getElementById('audit-outcome-filter')?.addEventListener('change', applyAuditFilters);
+    document.getElementById('audit-junction-filter')?.addEventListener('input', applyAuditFilters);
+    document.getElementById('audit-reduction-filter')?.addEventListener('input', applyAuditFilters);
+    document.getElementById('audit-reset-filters')?.addEventListener('click', resetAuditFilters);
+    document.getElementById('audit-refresh-button')?.addEventListener('click', loadAuditLogs);
+    document.getElementById('audit-export-button')?.addEventListener('click', exportAuditLogs);
+
+    loadAuditLogs();
+  });
+
+  async function loadAuditLogs() {
+    const refreshButton = document.getElementById('audit-refresh-button');
+    setAuditMessage('Loading audit records...');
+    setAuditCount('Loading records...');
+
+    if (refreshButton) {
+      refreshButton.disabled = true;
+      refreshButton.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    try {
+      const response = await fetch(LOGS_API_URL, {
+        headers: { Accept: 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`The audit API returned HTTP ${response.status}.`);
+      }
+
+      const payload = await response.json();
+      if (!payload || !Array.isArray(payload.data)) {
+        throw new Error('The audit API returned an unexpected response.');
+      }
+
+      auditRecords = payload.data
+        .filter((record) => record && record.junction_id != null)
+        .sort((a, b) => getTimestamp(b.accepted_at) - getTimestamp(a.accepted_at));
+
+      updateAuditSummary(auditRecords);
+      applyAuditFilters();
+    } catch (error) {
+      console.error('Failed to load audit records:', error);
+      auditRecords = [];
+      visibleAuditRecords = [];
+      updateAuditSummary([]);
+      setAuditCount('Audit records unavailable');
+      setAuditMessage(
+        'Unable to load audit records. Check that the backend is running on localhost:8000 and try again.',
+        true
+      );
+    } finally {
+      if (refreshButton) {
+        refreshButton.disabled = false;
+        refreshButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+  }
+
+  function applyAuditFilters() {
+    const outcome = document.getElementById('audit-outcome-filter')?.value || 'all';
+    const junctionQuery = (document.getElementById('audit-junction-filter')?.value || '')
+      .trim()
+      .toLowerCase();
+    const minimumReductionValue = document.getElementById('audit-reduction-filter')?.value || '';
+    const minimumReduction = minimumReductionValue === '' ? null : Number(minimumReductionValue);
+
+    visibleAuditRecords = auditRecords.filter((record) => {
+      const matchesOutcome = outcome === 'all' || getAuditOutcome(record).key === outcome;
+      const matchesJunction = String(record.junction_id).toLowerCase().includes(junctionQuery);
+      const queueReduction = toFiniteNumber(record.queue_reduction_pct);
+      const matchesReduction = minimumReduction === null
+        || (queueReduction !== null && queueReduction >= minimumReduction);
+
+      return matchesOutcome && matchesJunction && matchesReduction;
+    });
+
+    renderAuditRows(visibleAuditRecords);
+    const exportButton = document.getElementById('audit-export-button');
+    if (exportButton) exportButton.disabled = visibleAuditRecords.length === 0;
+  }
+
+  function resetAuditFilters() {
+    const outcomeFilter = document.getElementById('audit-outcome-filter');
+    const junctionFilter = document.getElementById('audit-junction-filter');
+    const reductionFilter = document.getElementById('audit-reduction-filter');
+
+    if (outcomeFilter) outcomeFilter.value = 'all';
+    if (junctionFilter) junctionFilter.value = '';
+    if (reductionFilter) reductionFilter.value = '';
+    applyAuditFilters();
+  }
+
+  function renderAuditRows(records) {
+    const tableBody = document.getElementById('audit-log-body');
+    if (!tableBody) return;
+
+    if (records.length === 0) {
+      setAuditCount(`Showing 0 of ${auditRecords.length} records`);
+      setAuditMessage(auditRecords.length === 0
+        ? 'No measured optimisation audits have been recorded yet.'
+        : 'No audit records match the selected filters.');
+      return;
+    }
+
+    tableBody.innerHTML = records.map(createAuditRow).join('');
+    setAuditCount(`Showing ${records.length} of ${auditRecords.length} records`);
+  }
+
+  function createAuditRow(record) {
+    const outcome = getAuditOutcome(record);
+    const beforeQueue = formatMetric(record.before_avg_queue);
+    const afterQueue = formatMetric(record.after_avg_queue);
+    const beforeWait = formatMetric(record.before_avg_wait, 's');
+    const afterWait = formatMetric(record.after_avg_wait, 's');
+    const queueReduction = formatPercent(record.queue_reduction_pct);
+    const waitReduction = formatPercent(record.wait_reduction_pct);
+    const measuredAt = formatMetric(record.measured_at, 's');
+
+    return `
+      <tr class="hover:bg-surface-container-low/50 transition-colors">
+        <td class="px-lg py-md font-data-mono text-body-sm text-on-surface whitespace-nowrap">
+          ${escapeAuditHtml(formatAuditDate(record.accepted_at))}
+        </td>
+        <td class="px-lg py-md font-medium text-primary">
+          ${escapeAuditHtml(record.junction_id)}
+        </td>
+        <td class="px-lg py-md text-body-sm text-on-surface-variant">
+          <span class="font-medium text-on-surface">Signal timing optimisation</span><br>
+          Wait ${escapeAuditHtml(beforeWait)} → ${escapeAuditHtml(afterWait)}
+        </td>
+        <td class="px-lg py-md">
+          <span class="px-sm py-1 bg-green-100 text-green-700 text-label-md rounded-full font-bold">Accepted</span>
+        </td>
+        <td class="px-lg py-md font-data-mono text-body-sm">
+          <div class="flex items-center justify-center gap-base">
+            <span class="text-on-surface-variant">${escapeAuditHtml(beforeQueue)}</span>
+            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            <span class="${outcome.valueClass} font-bold">${escapeAuditHtml(afterQueue)}</span>
+          </div>
+        </td>
+        <td class="px-lg py-md">
+          <span class="px-sm py-1 ${outcome.badgeClass} text-label-md rounded-full font-bold">${outcome.label}</span>
+          <div class="mt-xs text-label-sm text-on-surface-variant">Queue ${escapeAuditHtml(queueReduction)} · Wait ${escapeAuditHtml(waitReduction)}</div>
+        </td>
+        <td class="px-lg py-md font-data-mono text-body-sm text-on-surface-variant whitespace-nowrap">
+          ${escapeAuditHtml(measuredAt)} sim time
+        </td>
+      </tr>
+    `;
+  }
+
+  function getAuditOutcome(record) {
+    const queueReduction = toFiniteNumber(record.queue_reduction_pct) || 0;
+    const waitReduction = toFiniteNumber(record.wait_reduction_pct) || 0;
+    const combinedReduction = queueReduction + waitReduction;
+
+    if (combinedReduction > 0.1) {
+      return {
+        key: 'improved',
+        label: 'Improved',
+        badgeClass: 'bg-primary-container/20 text-primary',
+        valueClass: 'text-primary'
+      };
+    }
+
+    if (combinedReduction < -0.1) {
+      return {
+        key: 'worsened',
+        label: 'Worsened',
+        badgeClass: 'bg-red-100 text-red-700',
+        valueClass: 'text-red-600'
+      };
+    }
+
+    return {
+      key: 'unchanged',
+      label: 'No Change',
+      badgeClass: 'bg-surface-variant text-on-surface-variant',
+      valueClass: 'text-on-surface'
+    };
+  }
+
+  function updateAuditSummary(records) {
+    setTextContent('audit-accepted-count', records.length);
+    setTextContent('audit-average-queue-reduction', formatAverage(records, 'queue_reduction_pct'));
+    setTextContent('audit-average-wait-reduction', formatAverage(records, 'wait_reduction_pct'));
+  }
+
+  function formatAverage(records, field) {
+    const values = records
+      .map((record) => toFiniteNumber(record[field]))
+      .filter((value) => value !== null);
+
+    if (values.length === 0) return '--';
+    const average = values.reduce((total, value) => total + value, 0) / values.length;
+    return `${average >= 0 ? '+' : ''}${average.toFixed(1)}%`;
+  }
+
+  function exportAuditLogs() {
+    if (visibleAuditRecords.length === 0) return;
+
+    const headers = [
+      'ID', 'Accepted At', 'Junction ID', 'Queue Reduction %', 'Wait Reduction %',
+      'Before Avg Queue', 'After Avg Queue', 'Before Avg Wait', 'After Avg Wait', 'Measured At'
+    ];
+    const rows = visibleAuditRecords.map((record) => [
+      record.id,
+      record.accepted_at,
+      record.junction_id,
+      record.queue_reduction_pct,
+      record.wait_reduction_pct,
+      record.before_avg_queue,
+      record.after_avg_queue,
+      record.before_avg_wait,
+      record.after_avg_wait,
+      record.measured_at
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map(formatCsvCell).join(','))
+      .join('\r\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `traffic-audits-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function formatCsvCell(value) {
+    let text = String(value ?? '');
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function setAuditMessage(message, isError) {
+    const tableBody = document.getElementById('audit-log-body');
+    if (!tableBody) return;
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="px-lg py-xl text-center ${isError ? 'text-error' : 'text-on-surface-variant'}">
+          ${escapeAuditHtml(message)}
+        </td>
+      </tr>
+    `;
+  }
+
+  function setAuditCount(message) {
+    setTextContent('audit-record-count', message);
+  }
+
+  function setTextContent(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  }
+
+  function toFiniteNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function formatMetric(value, suffix) {
+    const number = toFiniteNumber(value);
+    return number === null ? '--' : `${number.toFixed(1)}${suffix || ''}`;
+  }
+
+  function formatPercent(value) {
+    const number = toFiniteNumber(value);
+    return number === null ? '--' : `${number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
+  }
+
+  function formatAuditDate(value) {
+    if (!value) return '--';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function getTimestamp(value) {
+    const timestamp = new Date(value || 0).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  }
+
+  function escapeAuditHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+})();
+
+(function () {
   const WS_URL = 'ws://localhost:8000/traffic';
   const RECONNECT_DELAY_MS = 3000;
 
