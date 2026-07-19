@@ -34,15 +34,21 @@
 (function () {
   const OPT_WS_URL = 'ws://localhost:8000/opt';
   const RECONNECT_DELAY_MS = 3000;
+  const PROCESSED_STORAGE_KEY = 'traffic-ai-processed-recommendations';
+  const MAX_PROCESSED_RECOMMENDATIONS = 200;
 
   let optSocket;
   let optReconnectTimer;
-  let hasLiveRecommendations = false;
+  let recommendationNoticeTimer;
+  let recommendationNotice = null;
+  let processedRecommendations = loadProcessedRecommendations();
   const recommendationJunctionNames = new Map();
   const recommendations = new Map();
+  const submittedRecommendations = new Map();
 
   document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('recommendations-list')) {
+      renderRecommendations();
       connectOptimisationSocket();
     }
   });
@@ -55,6 +61,9 @@
 
     optSocket.addEventListener('open', () => {
       setOptimisationStatus('LIVE REVIEW');
+      if (recommendations.size === 0 && !recommendationNotice) {
+        renderRecommendations();
+      }
     });
 
     optSocket.addEventListener('message', (event) => {
@@ -62,6 +71,12 @@
         const message = JSON.parse(event.data);
         if (message.type === 'recommendation' && message.data) {
           addRecommendation(message.data);
+        }
+        if (message.type === 'decision_result') {
+          handleDecisionResult(message.data || message);
+        }
+        if (message.completed != null) {
+          handleDecisionCompleted(message.completed);
         }
       } catch (error) {
         console.error('Invalid optimisation message:', error);
@@ -82,13 +97,28 @@
   function addRecommendation(recommendation) {
     if (!recommendation.junction_id) return;
 
-    if (!hasLiveRecommendations) {
-      const list = document.getElementById('recommendations-list');
-      if (list) list.innerHTML = '';
-      hasLiveRecommendations = true;
+    const recommendationId = getRecommendationId(recommendation);
+    const fingerprint = getRecommendationFingerprint(recommendation);
+
+    if (shouldIgnoreRecommendation(recommendationId, fingerprint)) {
+      console.info(`Ignoring processed recommendation ${recommendationId}`);
+      return;
     }
 
-    recommendations.set(String(recommendation.junction_id), recommendation);
+    const activeDuplicate = Array.from(recommendations.values())
+      .some((active) => active._clientFingerprint === fingerprint);
+    if (activeDuplicate) {
+      console.info(`Ignoring duplicate active recommendation ${recommendationId}`);
+      return;
+    }
+
+    clearTimeout(recommendationNoticeTimer);
+    recommendationNotice = null;
+    recommendations.set(recommendationId, {
+      ...recommendation,
+      _clientRecommendationId: recommendationId,
+      _clientFingerprint: fingerprint
+    });
     renderRecommendations();
   }
 
@@ -97,11 +127,21 @@
     if (!list) return;
 
     const items = Array.from(recommendations.values()).slice(-3).reverse();
-    list.innerHTML = items.map(createRecommendationCard).join('');
+    const notice = recommendationNotice ? createRecommendationNotice(recommendationNotice) : '';
+
+    if (items.length === 0) {
+      list.innerHTML = notice || createRecommendationNotice({
+        icon: 'check_circle',
+        title: 'No active recommendation',
+        message: 'New AI suggestions will appear here when they are available.'
+      });
+    } else {
+      list.innerHTML = notice + items.map(createRecommendationCard).join('');
+    }
 
     list.querySelectorAll('[data-decision]').forEach((button) => {
       button.addEventListener('click', () => {
-        sendDecision(button.dataset.decision, button.dataset.junctionId);
+        sendDecision(button.dataset.decision, button.dataset.recommendationId);
       });
     });
   }
@@ -109,6 +149,7 @@
   function createRecommendationCard(recommendation) {
     const rawJunctionId = String(recommendation.junction_id);
     const junctionId = escapeHtml(rawJunctionId);
+    const recommendationId = escapeHtml(recommendation._clientRecommendationId);
     const displayJunctionId = getRecommendationJunctionName(rawJunctionId);
     const title = `${displayJunctionId}: ${formatPattern(recommendation.pattern_type)}`;
     const confidence = Math.round((Number(recommendation.severity_score) || 0) * 100);
@@ -120,7 +161,7 @@
     ));
 
     return `
-      <article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20" data-junction-id="${junctionId}">
+      <article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20" data-recommendation-id="${recommendationId}" data-junction-id="${junctionId}">
         <div class="flex items-start justify-between gap-md mb-sm">
           <div>
             <h3 class="text-title-md font-bold">${escapeHtml(title)}</h3>
@@ -142,10 +183,10 @@
           </div>
         </div>
         <div class="grid grid-cols-2 gap-sm">
-          <button data-decision="accept" data-junction-id="${junctionId}" class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
+          <button data-decision="accept" data-recommendation-id="${recommendationId}" class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
             <span class="material-symbols-outlined text-[20px]">check_circle</span> Accept
           </button>
-          <button data-decision="reject" data-junction-id="${junctionId}" class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
+          <button data-decision="reject" data-recommendation-id="${recommendationId}" class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
             <span class="material-symbols-outlined text-[20px]">cancel</span> Decline
           </button>
         </div>
@@ -153,34 +194,220 @@
     `;
   }
 
-  function sendDecision(action, junctionId) {
+  function createRecommendationNotice(notice) {
+    return `
+      <div class="bg-on-primary/10 p-lg rounded-lg border border-on-primary/20 text-center">
+        <span class="material-symbols-outlined text-[30px] opacity-80">${escapeHtml(notice.icon)}</span>
+        <h3 class="text-title-md font-bold mt-sm">${escapeHtml(notice.title)}</h3>
+        <p class="text-body-sm opacity-80 mt-xs">${escapeHtml(notice.message)}</p>
+      </div>
+    `;
+  }
+
+  function sendDecision(action, recommendationId) {
+    const recommendation = recommendations.get(recommendationId);
+    if (!recommendation) return;
+
     if (!optSocket || optSocket.readyState !== WebSocket.OPEN) {
       setOptimisationStatus('DISCONNECTED');
+      recommendationNotice = {
+        icon: 'error',
+        title: 'Decision not sent',
+        message: 'The optimisation service is disconnected. Please try again after it reconnects.'
+      };
+      renderRecommendations();
       return;
     }
 
-    optSocket.send(JSON.stringify({
-      action: action,
-      junction_id: junctionId
-    }));
+    markRecommendationSubmitting(recommendationId);
 
-    markRecommendationReviewed(junctionId, action);
+    try {
+      optSocket.send(JSON.stringify({
+        action,
+        recommendation_id: recommendation.recommendation_id || recommendationId,
+        junction_id: String(recommendation.junction_id)
+      }));
+    } catch (error) {
+      console.error('Failed to send recommendation decision:', error);
+      recommendationNotice = {
+        icon: 'error',
+        title: 'Decision not sent',
+        message: 'The decision could not be submitted. Please try again.'
+      };
+      renderRecommendations();
+      return;
+    }
+
+    rememberProcessedRecommendation(recommendation);
+    submittedRecommendations.set(recommendationId, recommendation);
+    removeMatchingActiveRecommendations(recommendation._clientFingerprint);
+    showDecisionSubmitted(action);
   }
 
-  function markRecommendationReviewed(junctionId, action) {
-    const card = Array.from(document.querySelectorAll('[data-junction-id]'))
-      .find((item) => item.dataset.junctionId === junctionId);
+  function removeMatchingActiveRecommendations(fingerprint) {
+    Array.from(recommendations.entries()).forEach(([recommendationId, active]) => {
+      if (active._clientFingerprint === fingerprint) {
+        recommendations.delete(recommendationId);
+      }
+    });
+  }
+
+  function markRecommendationSubmitting(recommendationId) {
+    const card = Array.from(document.querySelectorAll('[data-recommendation-id]'))
+      .find((item) => item.dataset.recommendationId === recommendationId && item.tagName === 'ARTICLE');
     if (!card) return;
 
     const status = card.querySelector('span.whitespace-nowrap');
     if (status) {
-      status.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>${action === 'accept' ? 'Accepted' : 'Declined'}`;
+      status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>Submitting...';
     }
 
     card.querySelectorAll('button').forEach((button) => {
       button.disabled = true;
       button.classList.add('opacity-60', 'cursor-not-allowed');
     });
+  }
+
+  function showDecisionSubmitted(action) {
+    clearTimeout(recommendationNoticeTimer);
+    recommendationNotice = {
+      icon: 'task_alt',
+      title: 'Decision submitted',
+      message: action === 'accept'
+        ? 'The recommendation was accepted and sent for processing.'
+        : 'The recommendation was rejected and removed from the active list.'
+    };
+    renderRecommendations();
+
+    recommendationNoticeTimer = setTimeout(() => {
+      recommendationNotice = recommendations.size === 0 ? {
+        icon: 'check_circle',
+        title: 'No active recommendation',
+        message: 'New AI suggestions will appear here when they are available.'
+      } : null;
+      renderRecommendations();
+    }, 2500);
+  }
+
+  function handleDecisionResult(result) {
+    const recommendationId = findSubmittedRecommendationId(result);
+    if (!recommendationId) return;
+
+    const recommendation = submittedRecommendations.get(recommendationId);
+    const status = String(result.status || '').toLowerCase();
+
+    if (status === 'failed' && recommendation) {
+      clearTimeout(recommendationNoticeTimer);
+      forgetProcessedRecommendation(recommendation);
+      submittedRecommendations.delete(recommendationId);
+      recommendations.set(recommendationId, recommendation);
+      recommendationNotice = {
+        icon: 'error',
+        title: 'Decision failed',
+        message: result.error || 'The backend could not process this decision. You can try again.'
+      };
+      renderRecommendations();
+      return;
+    }
+
+    if (['applied', 'accepted', 'rejected'].includes(status)) {
+      submittedRecommendations.delete(recommendationId);
+    }
+  }
+
+  function handleDecisionCompleted(recommendationIdValue) {
+    const recommendationId = String(recommendationIdValue);
+    submittedRecommendations.delete(recommendationId);
+  }
+
+  function findSubmittedRecommendationId(result) {
+    if (result.recommendation_id != null) {
+      const recommendationId = String(result.recommendation_id);
+      if (submittedRecommendations.has(recommendationId)) return recommendationId;
+    }
+
+    if (result.junction_id != null) {
+      const junctionId = String(result.junction_id);
+      const match = Array.from(submittedRecommendations.entries())
+        .find(([, recommendation]) => String(recommendation.junction_id) === junctionId);
+      if (match) return match[0];
+    }
+
+    return null;
+  }
+
+  function getRecommendationId(recommendation) {
+    if (recommendation.recommendation_id != null) {
+      return String(recommendation.recommendation_id);
+    }
+
+    const fingerprintHash = hashString(getRecommendationFingerprint(recommendation));
+    return `legacy-${recommendation.junction_id}-${recommendation.created_at || fingerprintHash}`;
+  }
+
+  function getRecommendationFingerprint(recommendation) {
+    return JSON.stringify([
+      String(recommendation.junction_id),
+      String(recommendation.pattern_type || ''),
+      recommendation.new_phase_durations || recommendation.new_phase_splits || null,
+      recommendation.new_cycle_length ?? null
+    ]);
+  }
+
+  function shouldIgnoreRecommendation(recommendationId, fingerprint) {
+    return processedRecommendations.some((processed) => (
+      processed.id === recommendationId
+      || processed.fingerprint === fingerprint
+    ));
+  }
+
+  function rememberProcessedRecommendation(recommendation) {
+    const processed = {
+      id: recommendation._clientRecommendationId,
+      fingerprint: recommendation._clientFingerprint,
+      processedAt: Date.now()
+    };
+
+    processedRecommendations = processedRecommendations
+      .filter((item) => item.id !== processed.id)
+      .concat(processed)
+      .slice(-MAX_PROCESSED_RECOMMENDATIONS);
+    saveProcessedRecommendations();
+  }
+
+  function forgetProcessedRecommendation(recommendation) {
+    processedRecommendations = processedRecommendations.filter(
+      (item) => item.id !== recommendation._clientRecommendationId
+    );
+    saveProcessedRecommendations();
+  }
+
+  function loadProcessedRecommendations() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(PROCESSED_STORAGE_KEY) || '[]');
+      return Array.isArray(stored)
+        ? stored.filter((item) => item && item.id && Number.isFinite(item.processedAt))
+        : [];
+    } catch (error) {
+      console.warn('Could not load processed recommendation IDs:', error);
+      return [];
+    }
+  }
+
+  function saveProcessedRecommendations() {
+    try {
+      localStorage.setItem(PROCESSED_STORAGE_KEY, JSON.stringify(processedRecommendations));
+    } catch (error) {
+      console.warn('Could not save processed recommendation IDs:', error);
+    }
+  }
+
+  function hashString(value) {
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+      hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
+    }
+    return Math.abs(hash).toString(36);
   }
 
   function setOptimisationStatus(status) {

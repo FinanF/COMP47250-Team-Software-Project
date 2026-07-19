@@ -128,12 +128,12 @@
           },
         }
     </script>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260719-1">
 </head>
 <body class="bg-background text-on-surface font-body-md">
 <header class="bg-surface-container-lowest border-b border-outline-variant flex justify-between items-center w-full px-lg h-16 z-50 shrink-0 sticky top-0">
 <div class="flex items-center gap-xl">
-<a href="index.html"><h1 class="text-title-lg font-title-lg font-black text-primary tracking-tighter">Dublin Traffic AI</h1></a>
+<a href="index.html" class="font-headline-sm text-headline-sm font-bold text-primary">Dublin Traffic AI</a>
 <nav class="hidden md:flex items-center gap-md">
 <a class="text-primary border-b-2 border-primary pb-1 font-title-md h-16 flex items-center" href="index.html">Dashboard</a>
 <a class="text-on-surface-variant font-title-md hover:text-primary px-3 h-16 flex items-center transition-colors" href="intersections.html">Intersections</a>
@@ -270,87 +270,11 @@
 <div id="opt-connection-text" class="ml-auto bg-on-primary/20 text-on-primary px-3 py-1 rounded-full text-label-md font-bold uppercase">Live Review</div>
 </div>
 <div id="recommendations-list" class="space-y-md relative">
-<article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20">
-<div class="flex items-start justify-between gap-md mb-sm">
-<div>
-<h3 class="text-title-md font-bold">J-741: North-South Green Phase Extension</h3>
-<p class="text-body-sm opacity-90 mt-1">Extend green phase for North-South traffic by +15s.</p>
+<div class="bg-on-primary/10 p-lg rounded-lg border border-on-primary/20 text-center">
+<span class="material-symbols-outlined text-[30px] opacity-80">hourglass_top</span>
+<h3 class="text-title-md font-bold mt-sm">Connecting to recommendations</h3>
+<p class="text-body-sm opacity-80 mt-xs">Waiting for the live optimisation service.</p>
 </div>
-<span class="text-label-sm flex items-center gap-xs opacity-90 whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>Waiting for review</span>
-</div>
-<div class="grid grid-cols-2 gap-md mb-md">
-<div class="flex flex-col">
-<span class="text-label-sm uppercase opacity-70 font-bold">Confidence</span>
-<span class="text-title-lg font-data-mono">94.2%</span>
-</div>
-<div class="flex flex-col">
-<span class="text-label-sm uppercase opacity-70 font-bold">Est. Efficiency Gain</span>
-<span class="text-title-lg font-data-mono text-green-300">+22.4%</span>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-sm">
-<button class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
-<span class="material-symbols-outlined text-[20px]">check_circle</span> Accept
-</button>
-<button class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
-<span class="material-symbols-outlined text-[20px]">cancel</span> Decline
-</button>
-</div>
-</article>
-<article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20">
-<div class="flex items-start justify-between gap-md mb-sm">
-<div>
-<h3 class="text-title-md font-bold">J-801: Adaptive Cycle Length Adjustment</h3>
-<p class="text-body-sm opacity-90 mt-1">Adjust cycle length to 95s based on current demand.</p>
-</div>
-<span class="text-label-sm flex items-center gap-xs opacity-90 whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>Waiting for review</span>
-</div>
-<div class="grid grid-cols-2 gap-md mb-md">
-<div class="flex flex-col">
-<span class="text-label-sm uppercase opacity-70 font-bold">Confidence</span>
-<span class="text-title-lg font-data-mono">89.7%</span>
-</div>
-<div class="flex flex-col">
-<span class="text-label-sm uppercase opacity-70 font-bold">Est. Efficiency Gain</span>
-<span class="text-title-lg font-data-mono text-green-300">+14.8%</span>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-sm">
-<button class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
-<span class="material-symbols-outlined text-[20px]">check_circle</span> Accept
-</button>
-<button class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
-<span class="material-symbols-outlined text-[20px]">cancel</span> Decline
-</button>
-</div>
-</article>
-<article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20">
-<div class="flex items-start justify-between gap-md mb-sm">
-<div>
-<h3 class="text-title-md font-bold">J-803: Left-Turn Phase Optimization</h3>
-<p class="text-body-sm opacity-90 mt-1">Optimize left-turn phase for improved traffic flow.</p>
-</div>
-<span class="text-label-sm flex items-center gap-xs opacity-90 whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>Waiting for review</span>
-</div>
-<div class="grid grid-cols-2 gap-md mb-md">
-<div class="flex flex-col">
-<span class="text-label-sm uppercase opacity-70 font-bold">Confidence</span>
-<span class="text-title-lg font-data-mono">87.1%</span>
-</div>
-<div class="flex flex-col">
-<span class="text-label-sm uppercase opacity-70 font-bold">Est. Efficiency Gain</span>
-<span class="text-title-lg font-data-mono text-green-300">+11.3%</span>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-sm">
-<button class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
-<span class="material-symbols-outlined text-[20px]">check_circle</span> Accept
-</button>
-<button class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
-<span class="material-symbols-outlined text-[20px]">cancel</span> Decline
-</button>
-</div>
-</article>
 </div>
 </section>
 </div>
