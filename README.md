@@ -1,5 +1,5 @@
 
-# <img height="30" width="30" src="https://raw.githubusercontent.com/FinanF/COMP47250-Team-Software-Project/crest-ucd.svg" /> Web-based Human-in-the-Loop (HITL) AI System for Traffic Signal Optimisation 
+# <img height="30" width="30" src="https://raw.githubusercontent.com/FinanF/COMP47250-Team-Software-Project/main/crest-ucd.svg" /> Web-based Human-in-the-Loop (HITL) AI System for Traffic Signal Optimisation 
 
 Traffic optimisation interface using Dublin city simulated traffic data.
 
