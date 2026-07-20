@@ -1,22 +1,4 @@
 """
-<<<<<<< HEAD
-
-optimisation_worker.py — asyncio background task
-Reads congestion events from event_queue (put there by diagnostic_worker),
-runs TrafficSignalOptimiser, sends recommendations to recommendation_queue
-for the backend to pick up.
-
-<<<<<<< HEAD
-=======
-Updated to use Ruhao's build_signal_program() and pending_changes
-so all TraCI logic stays in sumo_worker.py.
->>>>>>> 832900036c5a5187f298593b14255cda3ad3c4bc
-"""
-
-import asyncio
-from optimisation.optimiser import TrafficSignalOptimiser
-import uuid
-=======
 optimisation_worker.py
 Reads congestion events from event_queue, runs TrafficSignalOptimiser,
 sends recommendations to recommendation_queue for the backend to pick up.
@@ -29,7 +11,6 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 from optimiser import TrafficSignalOptimiser
->>>>>>> cc7ee106bc99c62b8dca182a64388ff5fe6464b3
 
 COOLDOWN_SECONDS = 60
 
@@ -90,26 +71,6 @@ async def optimisation_worker(
                 event_queue.task_done()
                 continue
 
-<<<<<<< HEAD
-            # Build dict for backend / frontend
-            rec_dict = {
-                "recommendation_id": str(uuid.uuid4()),
-                "junction_id":        recommendation.junction_id,
-                "pattern_type":       recommendation.pattern_type,
-                "severity_score":     recommendation.severity_score,
-                "old_cycle_length":   recommendation.old_cycle_length,
-                "new_cycle_length":   recommendation.new_cycle_length,
-                "old_phase_splits":   recommendation.old_phase_splits,
-                "new_phase_splits":   recommendation.new_phase_splits,
-                "new_phase_durations":recommendation.new_phase_durations,  # for Ruhao's SUMO apply
-                "before_max_queue":   recommendation.before_max_queue,
-                "after_est_queue":    recommendation.after_est_queue,
-                "before_avg_wait":    recommendation.before_avg_wait,
-                "after_est_wait":     recommendation.after_est_wait,
-                "improvement_pct":    recommendation.improvement_pct,
-                "explanation":        recommendation.explanation,
-                "created_at":         recommendation.created_at,
-=======
             if sumo_integration and recommendation.new_phase_durations:
                 try:
                     new_program = build_signal_program(
@@ -137,7 +98,6 @@ async def optimisation_worker(
                 "improvement_pct":     recommendation.improvement_pct,
                 "explanation":         recommendation.explanation,
                 "created_at":          recommendation.created_at,
->>>>>>> cc7ee106bc99c62b8dca182a64388ff5fe6464b3
             }
 
             last_recommended[junction] = now
