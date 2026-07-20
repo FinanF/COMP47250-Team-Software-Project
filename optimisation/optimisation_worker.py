@@ -5,12 +5,13 @@ sends recommendations to recommendation_queue for the backend to pick up.
 
 Each recommendation includes a unique recommendation_id (UUID).
 A 60 second cooldown prevents the same junction from being re-recommended too soon.
+pending_changes is handled by Finan after the operator accepts a recommendation.
 """
 
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from optimiser import TrafficSignalOptimiser
+from optimisation.optimiser import TrafficSignalOptimiser
 
 COOLDOWN_SECONDS = 60
 
@@ -23,9 +24,9 @@ async def optimisation_worker(
     last_recommended = {}
 
     try:
-        from backend.simulation.sumo_worker import build_signal_program, pending_changes, get_phase_structure
+        from backend.simulation.sumo_worker import get_phase_structure
         sumo_integration = True
-        print("[OptimisationWorker] SUMO integration enabled.")
+        print("[OptimisationWorker] SUMO phase structure available.")
     except ImportError:
         sumo_integration = False
         print("[OptimisationWorker] Running without SUMO integration.")
@@ -70,16 +71,6 @@ async def optimisation_worker(
                 print(f"[OptimisationWorker] No recommendation produced for {junction}.")
                 event_queue.task_done()
                 continue
-
-            if sumo_integration and recommendation.new_phase_durations:
-                try:
-                    new_program = build_signal_program(
-                        recommendation.junction_id,
-                        recommendation.new_phase_durations
-                    )
-                    pending_changes[recommendation.junction_id] = new_program
-                except Exception as e:
-                    print(f"[OptimisationWorker] Could not apply to SUMO: {e}")
 
             rec_dict = {
                 "recommendation_id":   str(uuid.uuid4()),
