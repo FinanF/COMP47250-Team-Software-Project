@@ -18,9 +18,7 @@ MAX_SIM_TIME = 3600.0     # 1 hour of simulation time
 STEP_LENGTH = 0.5         # must match <step-length> in .sumocfg
 
 INJECT_CONGESTION = os.environ.get("INJECT_CONGESTION", "true").lower() == "true"
-
 DEMAND_PROFILE = os.environ.get("DEMAND_PROFILE", "normal")  # "low" | "normal" | "peak"
-
 DEMAND_ROUTES = {
     "low":    "routes_low_routed.xml",
     "normal": "routes.xml",
@@ -28,18 +26,13 @@ DEMAND_ROUTES = {
 }
 
 pending_changes: dict = {}
-
 baseline_snapshots: dict = {}
-
 _last_green_time: dict = {}
-
 post_change_snapshots: dict = {}
-
 POST_CHANGE_MEASUREMENT_DELAY = 120  # steps — 30 sim-seconds at 0.5s step length
-
 _pending_measurements: dict = {}  # junction_id → step number when change was applied
-
 _db_queue_ref: asyncio.Queue | None = None
+signal_change_status: dict = {}   # junction_id → "queued" | "applied" | "failed"
 
 def parse_junction_coordinates(net_xml_path: str) -> dict:
     coords = {}
@@ -419,7 +412,7 @@ def capture_baseline(junction_id: str, sim_time: float):
 
 
 def apply_pending_changes():
-    global pending_changes
+    global pending_changes, signal_change_status
     if not pending_changes:
         return
 
@@ -427,17 +420,23 @@ def apply_pending_changes():
     current_step = round(sim_time / STEP_LENGTH)
 
     for junction_id, new_program in list(pending_changes.items()):
+        # Mark as queued before attempting application
+        signal_change_status[junction_id] = "queued"
+        
         # Capture baseline BEFORE applying
         capture_baseline(junction_id, sim_time)
+        
         try:
             traci.trafficlight.setCompleteRedYellowGreenDefinition(
                 junction_id, new_program
             )
             schedule_post_change_measurement(junction_id, current_step)
+            signal_change_status[junction_id] = "applied"
             print(f"[SIM] Applied new signal program to {junction_id}", file=sys.stderr)
+        
         except Exception as e:
-            print(f"[ERROR] Failed to apply change to {junction_id}: {e}",
-                  file=sys.stderr)
+            signal_change_status[junction_id] = "failed"
+            print(f"[ERROR] Failed to apply change to {junction_id}: {e}", file=sys.stderr)
 
     pending_changes.clear()
 
