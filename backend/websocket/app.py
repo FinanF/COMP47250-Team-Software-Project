@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database.db import select_all_recommendations, clear_recommendations, db_worker, select_all_junctions, \
     select_audits_by_junction_id
 from backend.simulation.sumo_worker import sumo_worker, pending_changes, \
-    build_signal_program
+    build_signal_program, signal_change_status
 from diagnostic.diagnostic_worker import diagnostic_worker
 from optimisation.optimisation_worker import optimisation_worker
 
@@ -175,7 +175,9 @@ async def optimisation_ws(websocket: WebSocket):
                     # Remove after applying
                     del pending_recommendations[recommendation_id]
 
-                    await websocket.send_json({"completed": recommendation_id})
+                    await websocket.send_json({"type": "decision_result","data":{"recommendation_id":recommendation_id,
+                                                                                 "junction_id":junction_id,
+                                                                                 "status":signal_change_status.get(junction_id)}})
 
                 except Exception as e:
                     logger.exception(
