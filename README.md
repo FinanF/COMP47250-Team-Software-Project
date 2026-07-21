@@ -1,4 +1,3 @@
-
 # <img height="30" width="30" src="https://raw.githubusercontent.com/FinanF/COMP47250-Team-Software-Project/main/crest-ucd.svg" /> Web-based Human-in-the-Loop (HITL) AI System for Traffic Signal Optimisation 
 
 Traffic optimisation interface using Dublin city simulated traffic data.
@@ -11,18 +10,20 @@ Traffic optimisation interface using Dublin city simulated traffic data.
   - [Optimisation Stream](#optimisation-stream)
 - [REST API](#rest-api)
 - [Database Schema](#database-schema)
-- [Technologies](#technologies)
 - [Authors](#authors)
+
 ## Deployment
 
 To deploy this project run
 
 ```bash
-  docker-compose up --build
+docker-compose up --build
 ```
+
 To view the website connect to 
+
 ```bash
-  http://localhost:3000
+http://localhost:5500
 ```
 
 ## WebSocket API Reference
@@ -42,13 +43,12 @@ Connect to receive real-time traffic simulation updates.
 ws://localhost:8000/traffic
 ```
 
-The server automatically starts the traffic simulation worker when a client connects and streams junction and vehicle updates until the client disconnects.
-
-### Junction State Update
+The traffic simulation runs in a background worker, and this endpoint streams junction and vehicle updates over the WebSocket while the simulation is active.
+#### Junction State Update
 
 The server periodically sends the current state of all simulated traffic junctions.
 
-#### Message Type
+##### Message Type
 
 ```json
 {
@@ -56,7 +56,7 @@ The server periodically sends the current state of all simulated traffic junctio
 }
 ```
 
-#### Simulation Fields
+##### Simulation Fields
 
 | Field                | Type      | Description                           |
 |:---------------------|:----------|:--------------------------------------|
@@ -68,7 +68,7 @@ The server periodically sends the current state of all simulated traffic junctio
 | `sim_status`         | `string`  | Current simulation status             |
 | `sim_time_remaining` | `float`   | Remaining simulation time             |
 
-#### Junction Object
+##### Junction Object
 
 | Field                      | Type      | Description                 |
 |:---------------------------|:----------|:----------------------------|
@@ -81,7 +81,7 @@ The server periodically sends the current state of all simulated traffic junctio
 | `phase_duration_elapsed`   | `float`   | Elapsed phase duration      |
 | `signal_state`             | `string`  | Current signal state        |
 
-#### Approach Object
+##### Approach Object
 
 | Field                 | Type      | Description               |
 |:----------------------|:----------|:--------------------------|
@@ -94,11 +94,11 @@ The server periodically sends the current state of all simulated traffic junctio
 
 ---
 
-### Vehicle State Update
+#### Vehicle State Update
 
 Provides real-time vehicle position and movement data.
 
-#### Message Type
+##### Message Type
 
 ```json
 {
@@ -106,7 +106,7 @@ Provides real-time vehicle position and movement data.
 }
 ```
 
-#### Vehicle Object
+##### Vehicle Object
 
 ```json
 {
@@ -140,20 +140,47 @@ ws://localhost:8000/opt
 
 The optimisation worker analyses congestion events and streams recommendations to connected clients.
 
-### Recommendation Message
+#### Recommendation Message
 
-#### Message Type
+##### Message Type
 
 ```json
 {
-  "type": "recommendation"
+  "type": "recommendation",
+  "data": {
+    "recommendation_id": "eab8f9c2-4d3e-4a1b-9f5e-2c3d4e5f6a7b",
+    "junction_id": "1396454306",
+    "pattern_type": "congestion",
+    "severity_score": 0.85,
+    "old_cycle_length": 90.0,
+    "new_cycle_length": 75.0,
+    "old_phase_splits": {
+      "phase_1": 30.0,
+      "phase_2": 30.0,
+      "phase_3": 30.0
+    },
+    "new_phase_splits": {
+      "phase_1": 25.0,
+      "phase_2": 25.0,
+      "phase_3": 25.0
+    },
+    "new_phase_durations": [25.0, 25.0, 25.0],
+    "before_max_queue": 15,
+    "after_est_queue": 10.5,
+    "before_avg_wait": 20.0,
+    "after_est_wait": 15.0,
+    "improvement_pct": 25.0,
+    "explanation": "Reducing cycle length and adjusting phase splits to alleviate congestion.",
+    "created_at": "2026-07-18T17:01:55"
+  }
 }
 ```
 
-#### Recommendation Fields
+##### Recommendation Fields
 
 | Field                 | Type           | Description                        |
 |:----------------------|:---------------|:-----------------------------------|
+| `recommendation_id`   | `string`       | Recommendation identifier          |
 | `junction_id`         | `string`       | Junction requiring optimisation    |
 | `pattern_type`        | `string`       | Detected congestion pattern        |
 | `severity_score`      | `float`        | Confidence/severity score          |
@@ -170,16 +197,16 @@ The optimisation worker analyses congestion events and streams recommendations t
 | `explanation`         | `string`       | Human-readable explanation         |
 | `created_at`          | `string`       | Recommendation timestamp           |
 
-### Operator Response
+#### Operator Response
 
 Clients respond by accepting or rejecting a recommendation.
 
-#### Message
+##### Message
 
 ```json
 {
   "action": "accept",
-  "junction_id": "1396454306"
+  "recommendation_id": "eab8f9c2-4d3e-4a1b-9f5e-2c3d4e5f6a7b"
 }
 ```
 
@@ -188,16 +215,71 @@ or
 ```json
 {
   "action": "reject",
-  "junction_id": "1396454306"
+  "recommendation_id": "eab8f9c2-4d3e-4a1b-9f5e-2c3d4e5f6a7b"
 }
 ```
 
-#### Fields
+##### Fields
 
-| Field         | Type     | Description          |
-|:--------------|:---------|:---------------------|
-| `action`      | `string` | `accept` or `reject` |
-| `junction_id` | `string` | Junction identifier  |
+| Field               | Type     | Description               |
+|:--------------------|:---------|:--------------------------|
+| `action`            | `string` | `accept` or `reject`      |
+| `recommendation_id` | `string` | Recommendation identifier |
+
+#### Decision Status Updates
+
+After the operator sends an `accept` or `reject` action, the backend applies the signal timing change in the simulation and streams **decision result** updates back over the same websocket.
+
+##### Status Update Message
+
+###### Message Type
+
+```json
+{
+  "type": "decision_result",
+  "data": {
+    "recommendation_id": "eab8f9c2-4d3e-4a1b-9f5e-2c3d4e5f6a7b",
+    "junction_id": "1396454306",
+    "status": "queued"
+  }
+}
+```
+
+Or later, when the change is applied or fails:
+
+```json
+{
+  "type": "decision_result",
+  "data": {
+    "recommendation_id": "eab8f9c2-4d3e-4a1b-9f5e-2c3d4e5f6a7b",
+    "junction_id": "1396454306",
+    "status": "applied"
+  }
+}
+```
+
+```json
+{
+  "type": "decision_result",
+  "data": {
+    "recommendation_id": "eab8f9c2-4d3e-4a1b-9f5e-2c3d4e5f6a7b",
+    "junction_id": "1396454306",
+    "status": "failed"
+  }
+}
+```
+
+##### Status Fields
+
+| Field               | Type     | Description                                                                |
+|:--------------------|:---------|:---------------------------------------------------------------------------|
+| `recommendation_id` | `string` | Identifier of the recommendation this status refers to                     |
+| `junction_id`       | `string` | Junction where the signal program change was attempted                     |
+| `status`            | `string` | One of `queued`, `applied`, or `failed`, representing the change lifecycle |
+
+- `queued`: The recommendation was accepted and queued for application in the simulation.  
+- `applied`: The new signal program was successfully applied at the junction.  
+- `failed`: The attempt to apply the new signal program failed (see server logs for details).
 
 ## REST API
 
@@ -334,18 +416,18 @@ Stores the geographical information for each signalised junction in the SUMO roa
 
 Stores an audit record for every optimisation recommendation accepted by the operator. After a recommendation is applied, the system measures the resulting traffic performance and records both the baseline and post-optimisation metrics.
 
-|        Column         | Type       | Description                                                                                         |
-|:---------------------:|:-----------|:----------------------------------------------------------------------------------------------------|
-|         `id`          | `integer`  | Unique record identifier (Primary Key).                                                             |
-|     `junction_id`     | `string`   | Identifier of the junction where the optimisation was applied.                                      |
+| Column                | Type       | Description                                                                                         |
+|:----------------------|:-----------|:----------------------------------------------------------------------------------------------------|
+| `id`                  | `integer`  | Unique record identifier (Primary Key).                                                             |
+| `junction_id`         | `string`   | Identifier of the junction where the optimisation was applied.                                      |
 | `queue_reduction_pct` | `float`    | Measured percentage reduction in average queue length.                                              |
 | `wait_reduction_pct`  | `float`    | Measured percentage reduction in average vehicle waiting time.                                      |
-|  `before_avg_queue`   | `float`    | Average queue length before applying the optimisation.                                              |
-|   `after_avg_queue`   | `float`    | Average queue length after applying the optimisation.                                               |
-|   `before_avg_wait`   | `float`    | Average vehicle waiting time before optimisation (seconds).                                         |
-|   `after_avg_wait`    | `float`    | Average vehicle waiting time after optimisation (seconds).                                          |
-|     `measured_at`     | `float`    | Simulation timestamp when the post-optimisation measurements were recorded.                         |
-|     `accepted_at`     | `datetime` | Timestamp when the recommendation was accepted and logged. Automatically generated by the database. |
+| `before_avg_queue`    | `float`    | Average queue length before applying the optimisation.                                              |
+| `after_avg_queue`     | `float`    | Average queue length after applying the optimisation.                                               |
+| `before_avg_wait`     | `float`    | Average vehicle waiting time before optimisation (seconds).                                         |
+| `after_avg_wait`      | `float`    | Average vehicle waiting time after optimisation (seconds).                                          |
+| `measured_at`         | `float`    | Simulation timestamp when the post-optimisation measurements were recorded.                         |
+| `accepted_at`         | `datetime` | Timestamp when the recommendation was accepted and logged. Automatically generated by the database. |
 
 ## Authors
 
