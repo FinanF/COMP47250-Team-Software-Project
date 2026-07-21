@@ -21,6 +21,7 @@ traffic_queue = asyncio.Queue(maxsize=500)
 diagnostic_queue = asyncio.Queue(maxsize=500)
 event_queue = asyncio.Queue(maxsize=500)
 recommendation_queue = asyncio.Queue(maxsize=500)
+status_queue = asyncio.Queue(maxsize=500)
 
 accepted_queue = asyncio.Queue(maxsize=500)
 
@@ -56,6 +57,7 @@ async def lifespan(app: FastAPI):
             traffic_queue=sumo_output_queue,
             shutdown_event=shutdown_event,
             db_queue=db_queue,
+            status_queue=status_queue
         )
     )
 
@@ -168,16 +170,16 @@ async def optimisation_ws(websocket: WebSocket):
                         recommendation["new_phase_durations"]
                     )
 
-                    pending_changes[junction_id] = new_program
+                    pending_changes[junction_id] = {
+                        "program": new_program,
+                        "recommendation_id": recommendation_id
+                    }
+
                     logger.info(
                         f"Accepted recommendation for {recommendation_id} at junction {junction_id}"
                     )
                     # Remove after applying
                     del pending_recommendations[recommendation_id]
-
-                    await websocket.send_json({"type": "decision_result","data":{"recommendation_id":recommendation_id,
-                                                                                 "junction_id":junction_id,
-                                                                                 "status":signal_change_status.get(junction_id)}})
 
                 except Exception as e:
                     logger.exception(
@@ -190,21 +192,27 @@ async def optimisation_ws(websocket: WebSocket):
                 logger.info(
                     f"Rejected recommendation for {recommendation_id}"
                 )
-                await websocket.send_json({"completed": recommendation_id})
 
+    async def send_status_updates():
+        while True:
+            update = await status_queue.get()
 
-    sender = asyncio.create_task(send_recommendations())
-    receiver = asyncio.create_task(receive_decisions())
+            await websocket.send_json({"type": "decision_result", "data": update})
+
+    sender_task = asyncio.create_task(send_recommendations())
+    receiver_task = asyncio.create_task(receive_decisions())
+    status_task = asyncio.create_task(send_status_updates())
 
     try:
-        await asyncio.gather(sender, receiver)
+        await asyncio.gather(sender_task, receiver_task,status_task)
 
     except WebSocketDisconnect:
         logger.info("Optimisation client disconnected.")
 
     finally:
-        sender.cancel()
-        receiver.cancel()
+        sender_task.cancel()
+        receiver_task.cancel()
+        status_task.cancel()
 
 @app.get("/logs")
 async def get_logs():

@@ -412,7 +412,7 @@ def capture_baseline(junction_id: str, sim_time: float):
         print(f"[WARN] Baseline capture failed for {junction_id}: {e}", file=sys.stderr)
 
 
-def apply_pending_changes():
+async def apply_pending_changes(status_queue:asyncio.Queue):
     global pending_changes, signal_change_status
     if not pending_changes:
         return
@@ -420,29 +420,50 @@ def apply_pending_changes():
     sim_time = traci.simulation.getTime()
     current_step = round(sim_time / STEP_LENGTH)
 
-    for junction_id, new_program in list(pending_changes.items()):
-        # Marked as queued before attempting application
-        signal_change_status[junction_id] = "queued"
-
-        # Capture baseline BEFORE applying
-        capture_baseline(junction_id, sim_time)
-
+    for junction_id, change in list(pending_changes.items()):
         try:
-            traci.trafficlight.setCompleteRedYellowGreenDefinition(
-                junction_id, new_program
-            )
-            schedule_post_change_measurement(junction_id, current_step)
-            signal_change_status[junction_id] = "applied"
-            print(f"[SIM] Applied new signal program to {junction_id}", file=sys.stderr)
+            recommendation_id = change["recommendation_id"]
+            new_program = change["program"]
+            # Marked as queued before attempting application
+            signal_change_status[junction_id] = "queued"
+            await status_queue.put({
+                "recommendation_id": recommendation_id,
+                "junction_id": junction_id,
+                "status": "queued"
+            })
 
+            # Capture baseline BEFORE applying
+            capture_baseline(junction_id, sim_time)
+
+            try:
+                traci.trafficlight.setCompleteRedYellowGreenDefinition(
+                    junction_id, new_program
+                )
+                schedule_post_change_measurement(junction_id, current_step)
+                signal_change_status[junction_id] = "applied"
+                await status_queue.put({
+                    "recommendation_id": recommendation_id,
+                    "junction_id": junction_id,
+                    "status": "applied"
+                })
+
+                print(f"[SIM] Applied new signal program to {junction_id}", file=sys.stderr)
+
+            except Exception as e:
+                signal_change_status[junction_id] = "failed"
+                await status_queue.put({
+                    "recommendation_id": recommendation_id,
+                    "junction_id": junction_id,
+                    "status": "failed"
+                })
+                print(f"[ERROR] Failed to apply change to {junction_id}: {e}", file=sys.stderr)
         except Exception as e:
-            signal_change_status[junction_id] = "failed"
-            print(f"[ERROR] Failed to apply change to {junction_id}: {e}", file=sys.stderr)
+            print(f"[ERROR] Error processing pending change for {junction_id}: {e}", file=sys.stderr)
 
     pending_changes.clear()
 
 
-async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
+async def sumo_worker(traffic_queue, shutdown_event, db_queue=None,status_queue=None):
     global _db_queue_ref
     _db_queue_ref = db_queue
 
@@ -494,7 +515,7 @@ async def sumo_worker(traffic_queue, shutdown_event, db_queue=None):
             not shutdown_event.is_set()
             and traci.simulation.getTime() < MAX_SIM_TIME
         ):
-            apply_pending_changes()
+            await apply_pending_changes(status_queue=status_queue)
 
             traci.simulationStep()
             step += 1

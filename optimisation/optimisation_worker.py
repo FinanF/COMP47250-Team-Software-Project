@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 from optimisation.optimiser import TrafficSignalOptimiser
 
-COOLDOWN_SECONDS = 60
+COOLDOWN_SECONDS = 10
 
 
 async def optimisation_worker(
