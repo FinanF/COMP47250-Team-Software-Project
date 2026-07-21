@@ -150,48 +150,53 @@ async def optimisation_ws(websocket: WebSocket):
     async def receive_decisions():
         while True:
             message = await websocket.receive_json()
-
-            action = message.get("action")
-            recommendation_id = message.get("recommendation_id")
-
-            if action == "accept":
+            try:
+                action = message.get("action")
+                recommendation_id = message.get("recommendation_id")
                 recommendation = pending_recommendations.get(recommendation_id)
+                if action == "accept":
+                    if recommendation is None:
+                        logger.warning(
+                            f"No recommendation found for {recommendation_id}"
+                        )
+                        continue
 
-                if recommendation is None:
-                    logger.warning(
-                        f"No recommendation found for {recommendation_id}"
-                    )
-                    continue
+                    try:
+                        junction_id=recommendation["junction_id"]
+                        new_program = build_signal_program(
+                            junction_id,
+                            recommendation["new_phase_durations"]
+                        )
 
-                try:
-                    junction_id=recommendation["junction_id"]
-                    new_program = build_signal_program(
-                        junction_id,
-                        recommendation["new_phase_durations"]
-                    )
+                        pending_changes[junction_id] = {
+                            "program": new_program,
+                            "recommendation_id": recommendation_id
+                        }
 
-                    pending_changes[junction_id] = {
-                        "program": new_program,
-                        "recommendation_id": recommendation_id
-                    }
+                        logger.info(
+                            f"Accepted recommendation for {recommendation_id} at junction {junction_id}"
+                        )
+                        # Remove after applying
+                        del pending_recommendations[recommendation_id]
+
+                    except Exception as e:
+                        logger.exception(
+                            f"Failed creating signal program: {e}"
+                        )
+
+                elif action == "reject":
+
+                    junction_id=pending_recommendations
+                    pending_recommendations.pop(recommendation_id, None)
 
                     logger.info(
-                        f"Accepted recommendation for {recommendation_id} at junction {junction_id}"
+                        f"Rejected recommendation for {recommendation_id}"
                     )
-                    # Remove after applying
-                    del pending_recommendations[recommendation_id]
-
-                except Exception as e:
-                    logger.exception(
-                        f"Failed creating signal program: {e}"
-                    )
-
-            elif action == "reject":
-                pending_recommendations.pop(recommendation_id, None)
-
-                logger.info(
-                    f"Rejected recommendation for {recommendation_id}"
-                )
+                    await websocket.send_json({"type":"decision_result", "data":{"recommendation_id":recommendation_id,
+                                                                                 "junction_id":junction_id,
+                                                                                 "status":"rejected"}})
+            except Exception as e:
+                logger.exception(f"Failed creating signal program: {e}")
 
     async def send_status_updates():
         while True:
