@@ -34,7 +34,7 @@
 (function () {
   const OPT_WS_URL = 'ws://localhost:8000/opt';
   const RECONNECT_DELAY_MS = 3000;
-  const PROCESSED_STORAGE_KEY = 'traffic-ai-processed-recommendations';
+  const PROCESSED_SESSION_KEY = 'traffic-ai-processed-recommendations';
   const MAX_PROCESSED_RECOMMENDATIONS = 200;
 
   let optSocket;
@@ -98,26 +98,43 @@
     if (!recommendation.junction_id) return;
 
     const recommendationId = getRecommendationId(recommendation);
-    const fingerprint = getRecommendationFingerprint(recommendation);
+    if (!recommendationId) {
+      console.warn('Ignoring recommendation without recommendation_id');
+      return;
+    }
 
-    if (shouldIgnoreRecommendation(recommendationId, fingerprint)) {
+    if (shouldIgnoreRecommendation(recommendationId)) {
       console.info(`Ignoring processed recommendation ${recommendationId}`);
       return;
     }
 
-    const activeDuplicate = Array.from(recommendations.values())
-      .some((active) => active._clientFingerprint === fingerprint);
-    if (activeDuplicate) {
-      console.info(`Ignoring duplicate active recommendation ${recommendationId}`);
+    if (recommendations.has(recommendationId)) {
+      console.info(`Ignoring duplicate active recommendation ID ${recommendationId}`);
       return;
+    }
+
+    const junctionId = String(recommendation.junction_id);
+    const activeAtJunction = Array.from(recommendations.entries())
+      .find(([, active]) => String(active.junction_id) === junctionId);
+
+    if (activeAtJunction) {
+      const [activeRecommendationId, activeRecommendation] = activeAtJunction;
+      const activeDecisionStatus = activeRecommendation._clientDecisionStatus || '';
+      if (
+        submittedRecommendations.has(activeRecommendationId)
+        || ['submitting', 'queued'].includes(activeDecisionStatus)
+      ) {
+        console.info(`Ignoring new recommendation while a decision is pending for ${junctionId}`);
+        return;
+      }
+      recommendations.delete(activeRecommendationId);
     }
 
     clearTimeout(recommendationNoticeTimer);
     recommendationNotice = null;
     recommendations.set(recommendationId, {
       ...recommendation,
-      _clientRecommendationId: recommendationId,
-      _clientFingerprint: fingerprint
+      _clientRecommendationId: recommendationId
     });
     renderRecommendations();
   }
@@ -159,6 +176,19 @@
       rawJunctionId,
       displayJunctionId
     ));
+    const decisionAction = recommendation._clientDecisionAction || '';
+    const decisionStatus = recommendation._clientDecisionStatus || '';
+    const isDecisionPending = ['submitting', 'queued'].includes(decisionStatus);
+    const cardStatus = isDecisionPending
+      ? (decisionAction === 'accept' ? 'Applying signal change...' : 'Submitting decline...')
+      : 'Waiting for review';
+    const statusDotClass = isDecisionPending ? 'bg-amber-300 animate-pulse' : 'bg-on-primary';
+    const disabledAttributes = isDecisionPending ? ' disabled aria-disabled="true"' : '';
+    const disabledClasses = isDecisionPending ? ' opacity-60 cursor-not-allowed' : '';
+    const acceptIcon = decisionAction === 'accept' && isDecisionPending ? 'hourglass_top' : 'check_circle';
+    const acceptLabel = decisionAction === 'accept' && isDecisionPending ? 'Applying...' : 'Accept';
+    const rejectIcon = decisionAction === 'reject' && isDecisionPending ? 'hourglass_top' : 'cancel';
+    const rejectLabel = decisionAction === 'reject' && isDecisionPending ? 'Submitting...' : 'Decline';
 
     return `
       <article class="bg-on-primary/10 p-md rounded-lg border border-on-primary/20" data-recommendation-id="${recommendationId}" data-junction-id="${junctionId}">
@@ -167,9 +197,9 @@
             <h3 class="text-title-md font-bold">${escapeHtml(title)}</h3>
             <p class="text-body-sm opacity-90 mt-1">${explanation}</p>
           </div>
-          <span class="text-label-sm flex items-center gap-xs opacity-90 whitespace-nowrap">
-            <span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>
-            Waiting for review
+          <span class="text-label-sm flex items-center gap-xs opacity-90 whitespace-nowrap" aria-live="polite">
+            <span class="w-1.5 h-1.5 rounded-full ${statusDotClass}"></span>
+            ${cardStatus}
           </span>
         </div>
         <div class="grid grid-cols-2 gap-md mb-md">
@@ -183,11 +213,11 @@
           </div>
         </div>
         <div class="grid grid-cols-2 gap-sm">
-          <button data-decision="accept" data-recommendation-id="${recommendationId}" class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm">
-            <span class="material-symbols-outlined text-[20px]">check_circle</span> Accept
+          <button data-decision="accept" data-recommendation-id="${recommendationId}" class="bg-green-600 text-white flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm${disabledClasses}"${disabledAttributes}>
+            <span class="material-symbols-outlined text-[20px]">${acceptIcon}</span> ${acceptLabel}
           </button>
-          <button data-decision="reject" data-recommendation-id="${recommendationId}" class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all">
-            <span class="material-symbols-outlined text-[20px]">cancel</span> Decline
+          <button data-decision="reject" data-recommendation-id="${recommendationId}" class="bg-white text-error border-2 border-error flex items-center justify-center gap-sm py-2 rounded-lg text-title-md font-bold hover:bg-error/5 active:scale-[0.98] transition-all${disabledClasses}"${disabledAttributes}>
+            <span class="material-symbols-outlined text-[20px]">${rejectIcon}</span> ${rejectLabel}
           </button>
         </div>
       </article>
@@ -219,7 +249,14 @@
       return;
     }
 
-    markRecommendationSubmitting(recommendationId);
+    clearTimeout(recommendationNoticeTimer);
+    recommendationNotice = null;
+    setRecommendationDecisionState(recommendation, action, 'submitting');
+    submittedRecommendations.set(recommendationId, {
+      action,
+      recommendation
+    });
+    renderRecommendations();
 
     try {
       optSocket.send(JSON.stringify({
@@ -229,6 +266,8 @@
       }));
     } catch (error) {
       console.error('Failed to send recommendation decision:', error);
+      submittedRecommendations.delete(recommendationId);
+      clearRecommendationDecisionState(recommendation);
       recommendationNotice = {
         icon: 'error',
         title: 'Decision not sent',
@@ -237,44 +276,25 @@
       renderRecommendations();
       return;
     }
-
-    rememberProcessedRecommendation(recommendation);
-    submittedRecommendations.set(recommendationId, recommendation);
-    removeMatchingActiveRecommendations(recommendation._clientFingerprint);
-    showDecisionSubmitted(action);
   }
 
-  function removeMatchingActiveRecommendations(fingerprint) {
-    Array.from(recommendations.entries()).forEach(([recommendationId, active]) => {
-      if (active._clientFingerprint === fingerprint) {
-        recommendations.delete(recommendationId);
-      }
-    });
+  function setRecommendationDecisionState(recommendation, action, status) {
+    recommendation._clientDecisionAction = action;
+    recommendation._clientDecisionStatus = status;
   }
 
-  function markRecommendationSubmitting(recommendationId) {
-    const card = Array.from(document.querySelectorAll('[data-recommendation-id]'))
-      .find((item) => item.dataset.recommendationId === recommendationId && item.tagName === 'ARTICLE');
-    if (!card) return;
-
-    const status = card.querySelector('span.whitespace-nowrap');
-    if (status) {
-      status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-on-primary"></span>Submitting...';
-    }
-
-    card.querySelectorAll('button').forEach((button) => {
-      button.disabled = true;
-      button.classList.add('opacity-60', 'cursor-not-allowed');
-    });
+  function clearRecommendationDecisionState(recommendation) {
+    delete recommendation._clientDecisionAction;
+    delete recommendation._clientDecisionStatus;
   }
 
-  function showDecisionSubmitted(action) {
+  function showDecisionResolved(action) {
     clearTimeout(recommendationNoticeTimer);
     recommendationNotice = {
       icon: 'task_alt',
-      title: 'Decision submitted',
+      title: action === 'accept' ? 'Signal change applied' : 'Decision submitted',
       message: action === 'accept'
-        ? 'The recommendation was accepted and sent for processing.'
+        ? 'SUMO confirmed that the accepted signal timing was applied.'
         : 'The recommendation was rejected and removed from the active list.'
     };
     renderRecommendations();
@@ -293,14 +313,21 @@
     const recommendationId = findSubmittedRecommendationId(result);
     if (!recommendationId) return;
 
-    const recommendation = submittedRecommendations.get(recommendationId);
+    const submission = submittedRecommendations.get(recommendationId);
+    const recommendation = submission.recommendation;
+    const action = submission.action;
     const status = String(result.status || '').toLowerCase();
 
-    if (status === 'failed' && recommendation) {
+    if (['', 'unknown', 'pending', 'queued'].includes(status)) {
+      setRecommendationDecisionState(recommendation, action, 'queued');
+      renderRecommendations();
+      return;
+    }
+
+    if (['failed', 'error'].includes(status)) {
       clearTimeout(recommendationNoticeTimer);
-      forgetProcessedRecommendation(recommendation);
       submittedRecommendations.delete(recommendationId);
-      recommendations.set(recommendationId, recommendation);
+      clearRecommendationDecisionState(recommendation);
       recommendationNotice = {
         icon: 'error',
         title: 'Decision failed',
@@ -310,14 +337,35 @@
       return;
     }
 
-    if (['applied', 'accepted', 'rejected'].includes(status)) {
-      submittedRecommendations.delete(recommendationId);
+    if (['applied', 'accepted'].includes(status)) {
+      completeRecommendationDecision(recommendationId, 'accept', recommendation);
+      return;
+    }
+
+    if (status === 'rejected') {
+      completeRecommendationDecision(recommendationId, 'reject', recommendation);
     }
   }
 
   function handleDecisionCompleted(recommendationIdValue) {
     const recommendationId = String(recommendationIdValue);
+    const submission = submittedRecommendations.get(recommendationId);
+    if (!submission) return;
+
+    if (submission.action === 'reject') {
+      completeRecommendationDecision(recommendationId, 'reject', submission.recommendation);
+      return;
+    }
+
+    setRecommendationDecisionState(submission.recommendation, 'accept', 'queued');
+    renderRecommendations();
+  }
+
+  function completeRecommendationDecision(recommendationId, action, recommendation) {
+    rememberProcessedRecommendation(recommendation);
     submittedRecommendations.delete(recommendationId);
+    recommendations.delete(recommendationId);
+    showDecisionResolved(action);
   }
 
   function findSubmittedRecommendationId(result) {
@@ -329,7 +377,7 @@
     if (result.junction_id != null) {
       const junctionId = String(result.junction_id);
       const match = Array.from(submittedRecommendations.entries())
-        .find(([, recommendation]) => String(recommendation.junction_id) === junctionId);
+        .find(([, submission]) => String(submission.recommendation.junction_id) === junctionId);
       if (match) return match[0];
     }
 
@@ -337,34 +385,18 @@
   }
 
   function getRecommendationId(recommendation) {
-    if (recommendation.recommendation_id != null) {
-      return String(recommendation.recommendation_id);
-    }
-
-    const fingerprintHash = hashString(getRecommendationFingerprint(recommendation));
-    return `legacy-${recommendation.junction_id}-${recommendation.created_at || fingerprintHash}`;
+    if (recommendation.recommendation_id == null) return null;
+    const recommendationId = String(recommendation.recommendation_id).trim();
+    return recommendationId || null;
   }
 
-  function getRecommendationFingerprint(recommendation) {
-    return JSON.stringify([
-      String(recommendation.junction_id),
-      String(recommendation.pattern_type || ''),
-      recommendation.new_phase_durations || recommendation.new_phase_splits || null,
-      recommendation.new_cycle_length ?? null
-    ]);
-  }
-
-  function shouldIgnoreRecommendation(recommendationId, fingerprint) {
-    return processedRecommendations.some((processed) => (
-      processed.id === recommendationId
-      || processed.fingerprint === fingerprint
-    ));
+  function shouldIgnoreRecommendation(recommendationId) {
+    return processedRecommendations.some((processed) => processed.id === recommendationId);
   }
 
   function rememberProcessedRecommendation(recommendation) {
     const processed = {
       id: recommendation._clientRecommendationId,
-      fingerprint: recommendation._clientFingerprint,
       processedAt: Date.now()
     };
 
@@ -375,39 +407,36 @@
     saveProcessedRecommendations();
   }
 
-  function forgetProcessedRecommendation(recommendation) {
-    processedRecommendations = processedRecommendations.filter(
-      (item) => item.id !== recommendation._clientRecommendationId
-    );
-    saveProcessedRecommendations();
-  }
-
   function loadProcessedRecommendations() {
+    let stored;
     try {
-      const stored = JSON.parse(localStorage.getItem(PROCESSED_STORAGE_KEY) || '[]');
-      return Array.isArray(stored)
-        ? stored.filter((item) => item && item.id && Number.isFinite(item.processedAt))
-        : [];
+      stored = JSON.parse(sessionStorage.getItem(PROCESSED_SESSION_KEY) || '[]');
     } catch (error) {
       console.warn('Could not load processed recommendation IDs:', error);
       return [];
     }
+
+    const processed = Array.isArray(stored)
+      ? stored
+          .filter((item) => item && item.id && Number.isFinite(item.processedAt))
+          .map((item) => ({ id: String(item.id), processedAt: item.processedAt }))
+      : [];
+
+    try {
+      sessionStorage.setItem(PROCESSED_SESSION_KEY, JSON.stringify(processed));
+    } catch (error) {
+      console.warn('Could not migrate processed recommendation IDs:', error);
+    }
+
+    return processed;
   }
 
   function saveProcessedRecommendations() {
     try {
-      localStorage.setItem(PROCESSED_STORAGE_KEY, JSON.stringify(processedRecommendations));
+      sessionStorage.setItem(PROCESSED_SESSION_KEY, JSON.stringify(processedRecommendations));
     } catch (error) {
       console.warn('Could not save processed recommendation IDs:', error);
     }
-  }
-
-  function hashString(value) {
-    let hash = 0;
-    for (let index = 0; index < value.length; index += 1) {
-      hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
-    }
-    return Math.abs(hash).toString(36);
   }
 
   function setOptimisationStatus(status) {
