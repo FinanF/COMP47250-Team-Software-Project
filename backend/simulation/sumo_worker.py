@@ -14,7 +14,7 @@ NET_XML = os.path.join(BASE_DIR, "dublin_sub.net.xml")
 SCHEMA_VERSION = "1.2"
 EMIT_EVERY_N_STEPS = 10   # junction state: every 10 steps = every 5 sim-seconds at 0.5s step
 VEHICLE_EMIT_STEPS = 2    # vehicle positions: every 2 steps = every 1 sim-second
-MAX_SIM_TIME = 3600.0     # 1 hour of simulation time
+MAX_SIM_TIME = 10800.0     # 3 hours of simulation time
 STEP_LENGTH = 0.5         # must match <step-length> in .sumocfg
 
 INJECT_CONGESTION = os.environ.get("INJECT_CONGESTION", "true").lower() == "true"
