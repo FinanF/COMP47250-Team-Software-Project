@@ -136,16 +136,19 @@ async def optimisation_ws(websocket: WebSocket):
     pending_recommendations = {}
 
     async def send_recommendations():
-        while True:
-            recommendation = await recommendation_queue.get()
+        try:
+            while True:
+                recommendation = await recommendation_queue.get()
 
-            recommendation_id=recommendation.get("recommendation_id")
+                recommendation_id=recommendation.get("recommendation_id")
 
-            pending_recommendations[recommendation_id] = recommendation
-            await websocket.send_json({
-                "type": "recommendation",
-                "data": recommendation
-            })
+                pending_recommendations[recommendation_id] = recommendation
+                await websocket.send_json({
+                    "type": "recommendation",
+                    "data": recommendation
+                })
+        except (WebSocketDisconnect,RuntimeError):
+            logger.exception("Optimisation client disconnected while sending recommendations.")
 
     async def receive_decisions():
         while True:
@@ -199,10 +202,13 @@ async def optimisation_ws(websocket: WebSocket):
                 logger.exception(f"Failed creating signal program: {e}")
 
     async def send_status_updates():
-        while True:
-            update = await status_queue.get()
+        try:
+            while True:
+                update = await status_queue.get()
 
-            await websocket.send_json({"type": "decision_result", "data": update})
+                await websocket.send_json({"type": "decision_result", "data": update})
+        except (WebSocketDisconnect,RuntimeError):
+            logger.exception("Status client disconnected.")
 
     sender_task = asyncio.create_task(send_recommendations())
     receiver_task = asyncio.create_task(receive_decisions())
