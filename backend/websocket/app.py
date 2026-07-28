@@ -125,7 +125,7 @@ async def traffic_ws(websocket: WebSocket):
             state = await traffic_queue.get()
             await websocket.send_json(state)
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect,RuntimeError):
         logger.info("Traffic client disconnected.")
 
 

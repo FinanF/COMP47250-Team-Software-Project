@@ -1,0 +1,36 @@
+DIAGNOSTIC ALGORITHM — EVALUATION RESULTS
+==================================================
+Precision : 0.0122
+Recall    : 0.0964
+F1 Score  : 0.0214
+
+Per-class breakdown:
+                  precision    recall  f1-score   support
+
+demand_imbalance       0.11      0.90      0.19        10
+     green_waste       0.18      1.00      0.30        10
+          normal       0.00      0.00      0.00       250
+      starvation       0.06      0.80      0.11        10
+
+        accuracy                           0.10       280
+       macro avg       0.09      0.68      0.15       280
+    weighted avg       0.01      0.10      0.02       280
+
+Confusion Matrix:
+                  demand_imbalance  green_waste  normal  starvation
+demand_imbalance                 9            1       0           0
+green_waste                      0           10       0           0
+normal                          74           44       0         132
+starvation                       0            2       0           8
+
+Feature Importance:
+phase_duration_total        0.4
+max_seconds_since_green     0.2
+green_lane_count            0.2
+approach_count              0.1
+empty_green_lane_count      0.1
+current_phase               0.0
+max_waiting_time            0.0
+avg_queue_length            0.0
+max_queue_length            0.0
+phase_duration_remaining    0.0
