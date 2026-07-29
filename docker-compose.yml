@@ -8,6 +8,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
+      - DEMAND_PROFILE=peak
     env_file:
       - .env
     depends_on:
