@@ -6,7 +6,7 @@ Finan launches this from main.py lifespan.
 
 import asyncio
 import json
-from diagnostic.engine import DiagnosticEngine
+from engine import DiagnosticEngine
 
 
 async def diagnostic_worker(
@@ -18,25 +18,19 @@ async def diagnostic_worker(
     Runs forever as an asyncio background task.
     Picks up traffic states, runs detection, puts events downstream.
     """
-    print("[DiagnosticWorker] Starting diagnostic worker...")
-    engine = DiagnosticEngine()
+    engine = DiagnosticEngine(ml_model=ml_model)
     print("[DiagnosticWorker] Started — waiting for traffic states...")
 
     while True:
         try:
             # Block until a traffic state arrives from Ruhao's SUMO worker
             state = await traffic_queue.get()
+
             # Run both detection layers
-            if state["type"] != "junction_state":
-                continue
-            all_events=[]
-            for junction in state["junctions"]:
-                events = engine.analyse(junction)
-                all_events.extend(events)
-            if len(all_events)>0:
-                print(f"[DiagnosticWorker] Detected {len(all_events)} events.")
+            events = engine.analyse(state)
+
             # Push each event downstream to Princeton's optimisation worker
-            for event in all_events:
+            for event in events:
                 event_dict = {
                     "junction_id":    event.junction_id,
                     "pattern_type":   event.pattern_type,
