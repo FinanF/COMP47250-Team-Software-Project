@@ -6,7 +6,10 @@ Finan launches this from main.py lifespan.
 
 import asyncio
 import json
-from engine import DiagnosticEngine
+try:
+    from diagnostic.engine import DiagnosticEngine
+except ImportError:
+    from engine import DiagnosticEngine
 
 
 async def diagnostic_worker(

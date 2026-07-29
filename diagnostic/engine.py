@@ -2,7 +2,10 @@ import pickle
 import pandas as pd
 from datetime import datetime
 from dataclasses import dataclass, field
-from rules import RuleBasedDetector
+try:
+    from diagnostic.rules import RuleBasedDetector
+except ImportError:
+    from rules import RuleBasedDetector
 
 
 @dataclass
