@@ -414,7 +414,88 @@
             options: commonOptions
         });
     </script>
+<script>
+(function() {
+  const API = 'http://localhost:8000';
 
+  async function loadAnalytics() {
+    try {
+      const res  = await fetch(`${API}/logs`);
+      const json = await res.json();
+      const records = json.data || [];
+      if (records.length === 0) return;
+
+      const measured = records.filter(r => r.queue_reduction_pct != null);
+
+      const avgQueue = measured.length > 0
+        ? (measured.reduce((s,r) => s + r.queue_reduction_pct, 0) / measured.length).toFixed(1) : 0;
+      const validWait = measured.filter(r => r.wait_time_reduction_pct != null);
+      const avgWait = validWait.length > 0
+        ? (validWait.reduce((s,r) => s + r.wait_time_reduction_pct, 0) / validWait.length).toFixed(1) : 0;
+
+      const statEls = document.querySelectorAll('.stat-value');
+      if (statEls[0]) statEls[0].textContent = records.length;
+      if (statEls[1]) statEls[1].textContent = `${avgQueue}%`;
+      if (statEls[2]) statEls[2].textContent = `${avgWait}%`;
+
+      const trendCtx = document.getElementById('trendChart');
+      if (trendCtx && measured.length > 0) {
+        const last10 = measured.slice(-10);
+        const labels = last10.map((r, i) => `#${i+1}`);
+        const data   = last10.map(r => parseFloat(r.queue_reduction_pct.toFixed(1)));
+        if (window._trendChart) window._trendChart.destroy();
+        window._trendChart = new Chart(trendCtx, {
+          type: 'line',
+          data: { labels, datasets: [{ label: 'Queue Reduction %', data, borderColor: '#003d9b', backgroundColor: 'rgba(0,61,155,0.1)', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4, pointHoverRadius: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#eceef0' }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } } }
+        });
+      }
+
+      const junctionCounts = {};
+      records.forEach(r => { if (r.junction_id) junctionCounts[r.junction_id] = (junctionCounts[r.junction_id] || 0) + 1; });
+      const top5 = Object.entries(junctionCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+      const topCtx = document.getElementById('topJunctionsChart');
+      if (topCtx && top5.length > 0) {
+        if (window._topChart) window._topChart.destroy();
+        window._topChart = new Chart(topCtx, {
+          type: 'bar',
+          data: { labels: top5.map(([id]) => id.length > 12 ? id.slice(0,12)+'…' : id), datasets: [{ data: top5.map(([,c]) => c), backgroundColor: ['#ba1a1a','#ef4444','#f87171','#fca5a5','#fee2e2'], borderRadius: 4 }] },
+          options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { display: false } }, y: { grid: { display: false } } } }
+        });
+      }
+
+      const queueCtx = document.getElementById('queueBeforeAfterChart');
+      if (queueCtx && measured.length > 0) {
+        const avgBefore = (measured.reduce((s,r) => s + (r.queue_length_before || 0), 0) / measured.length).toFixed(1);
+        const avgAfter  = (measured.reduce((s,r) => s + (r.queue_length_after || 0), 0) / measured.length).toFixed(1);
+        if (window._queueChart) window._queueChart.destroy();
+        window._queueChart = new Chart(queueCtx, {
+          type: 'bar',
+          data: { labels: ['Average Queue'], datasets: [{ label: 'Before', data: [avgBefore], backgroundColor: '#c3c6d6', borderRadius: 4 }, { label: 'After', data: [avgAfter], backgroundColor: '#003d9b', borderRadius: 4 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { grid: { color: '#eceef0' } }, x: { grid: { display: false } } } }
+        });
+      }
+
+      const waitCtx = document.getElementById('waitBeforeAfterChart');
+      if (waitCtx && measured.length > 0) {
+        const wMeasured = measured.filter(r => r.wait_time_before != null);
+        const avgWBefore = wMeasured.length > 0 ? (wMeasured.reduce((s,r) => s + r.wait_time_before, 0) / wMeasured.length).toFixed(1) : 0;
+        const avgWAfter  = wMeasured.length > 0 ? (wMeasured.reduce((s,r) => s + r.wait_time_after, 0) / wMeasured.length).toFixed(1) : 0;
+        if (window._waitChart) window._waitChart.destroy();
+        window._waitChart = new Chart(waitCtx, {
+          type: 'bar',
+          data: { labels: ['Average Wait (s)'], datasets: [{ label: 'Before', data: [avgWBefore], backgroundColor: '#c3c6d6', borderRadius: 4 }, { label: 'After', data: [avgWAfter], backgroundColor: '#003d9b', borderRadius: 4 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { grid: { color: '#eceef0' } }, x: { grid: { display: false } } } }
+        });
+      }
+
+    } catch(e) { console.error('Analytics load failed', e); }
+  }
+
+  loadAnalytics();
+  setInterval(loadAnalytics, 30000);
+})();
+</script>
 
 
 
