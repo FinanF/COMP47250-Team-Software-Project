@@ -1016,6 +1016,7 @@
     updateText('phase-value', data.metrics.phase === null ? 'Phase --' : `Phase ${data.metrics.phase}`);
     updateText('vehicle-value', Math.round(data.metrics.totalVehicles));
     updateTrafficStatus(data.severity);
+    if (window.__updateForecastBars) window.__updateForecastBars(data);
   }
 
   function updateTrafficStatus(severity) {
