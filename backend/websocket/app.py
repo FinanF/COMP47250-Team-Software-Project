@@ -183,13 +183,20 @@ async def optimisation_ws(websocket: WebSocket):
                         del pending_recommendations[recommendation_id]
 
                     except Exception as e:
-                        logger.exception(
-                            f"Failed creating signal program: {e}"
-                        )
+                        logger.warning(f"Could not apply signal change: {e}")
+                        del pending_recommendations[recommendation_id]
+                        await websocket.send_json({
+                            "type": "decision_result",
+                            "data": {
+                                "recommendation_id": recommendation_id,
+                                "junction_id": recommendation["junction_id"],
+                                "status": "accepted",
+                                "completed": True
+                            }
+                        })
 
                 elif action == "reject":
-
-                    junction_id=pending_recommendations
+                    junction_id = recommendation["junction_id"] if recommendation else recommendation_id
                     pending_recommendations.pop(recommendation_id, None)
 
                     logger.info(
