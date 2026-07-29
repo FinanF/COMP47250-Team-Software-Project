@@ -189,7 +189,7 @@
 <span class="material-symbols-outlined text-primary">grid_view</span>
 </div>
 <div>
-<p class="font-headline-md text-headline-md text-on-surface">42</p>
+<p id="junction-count" class="font-headline-md text-headline-md text-on-surface">--</p>
 <p class="text-body-sm text-label-sm text-outline">Network coverage: 100%</p>
 </div>
 </div>
@@ -199,7 +199,7 @@
 <span class="material-symbols-outlined text-error">warning</span>
 </div>
 <div>
-<p class="font-headline-md text-headline-md text-error">8</p>
+<p id="heavy-count" class="font-headline-md text-headline-md text-error">--</p>
 <p class="text-body-sm text-label-sm text-error/80 flex items-center gap-1">
 <span class="material-symbols-outlined text-[14px]">trending_up</span> +2 from last hour
                         </p>
@@ -211,7 +211,7 @@
 <span class="material-symbols-outlined text-tertiary">directions_car</span>
 </div>
 <div>
-<p class="font-headline-md text-headline-md text-on-surface">14.2</p>
+<p id="moderate-count" class="font-headline-md text-headline-md text-on-surface">--</p>
 <p class="text-body-sm text-label-sm text-outline">Vehicles per lane</p>
 </div>
 </div>
@@ -221,7 +221,7 @@
 <span class="material-symbols-outlined text-secondary">schedule</span>
 </div>
 <div>
-<p class="font-headline-md text-headline-md text-on-surface font-data-mono">42.8s</p>
+<p id="avg-wait" class="font-headline-md text-headline-md text-on-surface font-data-mono">--</p>
 <p class="text-body-sm text-label-sm text-outline">System target: &lt; 45s</p>
 </div>
 </div>
@@ -442,9 +442,87 @@
             if(clockElement) clockElement.innerText = timeStr;
         }, 1000);
     </script>
+<script>
+(function() {
+  const API = 'http://localhost:8000';
+  const WS  = 'ws://localhost:8000/traffic';
+  let junctionData = {};
+  let ws;
 
+  async function loadJunctions() {
+    try {
+      const res  = await fetch(`${API}/junctions`);
+      const json = await res.json();
+      const junctions = json.data || [];
+      junctions.forEach(j => {
+        junctionData[j.junction_id] = { id: j.junction_id, lat: j.lat, lng: j.lng, queue: 0, wait: 0, phase: 0, vehicles: 0, status: 'normal' };
+      });
+      renderTable();
+    } catch(e) { console.error('Failed to load junctions', e); }
+  }
 
+  function connectWebSocket() {
+    ws = new WebSocket(WS);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type !== 'junction_state') return;
+      msg.junctions.forEach(j => {
+        const id = j.id || j.junction_id;
+        if (!junctionData[id]) junctionData[id] = { id };
+        const totalQueue = j.approaches.reduce((s, a) => s + a.queue_length, 0);
+        const avgWait    = j.approaches.reduce((s, a) => s + a.waiting_time_avg, 0) / Math.max(j.approaches.length, 1);
+        junctionData[id].queue    = totalQueue;
+        junctionData[id].wait     = avgWait.toFixed(1);
+        junctionData[id].phase    = j.current_phase;
+        junctionData[id].vehicles = j.approaches.reduce((s, a) => s + a.vehicle_count, 0);
+        junctionData[id].status   = totalQueue > 10 ? 'heavy' : totalQueue > 4 ? 'moderate' : 'normal';
+      });
+      renderTable();
+    };
+    ws.onclose = () => setTimeout(connectWebSocket, 3000);
+  }
 
+  function renderTable() {
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+    const rows = Object.values(junctionData);
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="px-lg py-xl text-center text-on-surface-variant">Waiting for live junction data...</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map((j, i) => {
+      const statusColor = j.status === 'heavy' ? 'bg-red-100 text-red-700' : j.status === 'moderate' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+      const statusLabel = j.status === 'heavy' ? 'Heavy Queue' : j.status === 'moderate' ? 'Some Delay' : 'Normal';
+      return `<tr class="table-row-hover cursor-pointer">
+        <td class="px-lg py-md text-body-sm text-primary font-bold">Junction ${String(i+1).padStart(2,'0')}</td>
+        <td class="px-lg py-md text-body-sm font-data-mono text-on-surface-variant">${j.id}</td>
+        <td class="px-lg py-md text-body-sm font-data-mono">${j.lat?.toFixed(4) ?? '--'}, ${j.lng?.toFixed(4) ?? '--'}</td>
+        <td class="px-lg py-md text-body-sm font-data-mono font-bold">${j.queue ?? 0}</td>
+        <td class="px-lg py-md text-body-sm font-data-mono">${j.wait ?? 0}s</td>
+        <td class="px-lg py-md text-body-sm font-data-mono">Phase ${j.phase ?? 0}</td>
+        <td class="px-lg py-md"><span class="px-sm py-xs rounded-full text-label-md font-bold ${statusColor}">${statusLabel}</span></td>
+      </tr>`;
+    }).join('');
+
+    const total = rows.length;
+    const heavy = rows.filter(j => j.status === 'heavy').length;
+    const moderate = rows.filter(j => j.status === 'moderate').length;
+    const countEl = document.getElementById('junction-count');
+    const heavyEl = document.getElementById('heavy-count');
+    const modEl   = document.getElementById('moderate-count');
+    const avgWaitEl = document.getElementById('avg-wait');
+    if (countEl) countEl.textContent = total;
+    if (heavyEl) heavyEl.textContent = heavy;
+    if (modEl)   modEl.textContent   = moderate;
+    const allWaits = rows.filter(j => j.wait > 0);
+    if (avgWaitEl) avgWaitEl.textContent = allWaits.length > 0
+      ? (allWaits.reduce((s, j) => s + parseFloat(j.wait), 0) / allWaits.length).toFixed(1) + 's' : '--';
+  }
+
+  loadJunctions();
+  connectWebSocket();
+})();
+</script>
 
 <script src="script.js"></script>
 </body></html>
