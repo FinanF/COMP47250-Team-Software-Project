@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 from optimisation.optimiser import TrafficSignalOptimiser
 
-COOLDOWN_SECONDS = 10
+COOLDOWN_SECONDS = 3
 
 
 async def optimisation_worker(
@@ -43,7 +43,7 @@ async def optimisation_worker(
 
             print(f"[OptimisationWorker] Received: {pattern} at {junction} (severity {severity})")
 
-            if severity < 0.3:
+            if severity < 0.08:
                 print(f"[OptimisationWorker] Severity too low, skipping.")
                 event_queue.task_done()
                 continue
