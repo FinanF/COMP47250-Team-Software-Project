@@ -13,13 +13,13 @@ from dataclasses import dataclass, field
 from collections import defaultdict, deque
 from datetime import datetime
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
-GREEN_WASTE_WAITING_THRESHOLD = 3
-STARVATION_GROWTH_STEPS       = 3
-STARVATION_MIN_QUEUE          = 5
-IMBALANCE_RATIO               = 3.0
-IMBALANCE_MIN_QUEUE           = 4
-CYCLE_TOO_LONG_THRESHOLD      = 120
+# ── Thresholds 
+GREEN_WASTE_WAITING_THRESHOLD = 2
+STARVATION_GROWTH_STEPS       = 2
+STARVATION_MIN_QUEUE          = 3
+IMBALANCE_RATIO               = 2.0
+IMBALANCE_MIN_QUEUE           = 2
+CYCLE_TOO_LONG_THRESHOLD      = 90
 
 
 @dataclass
@@ -122,7 +122,7 @@ class RuleBasedDetector:
             return events
         ratio = max_q / max(avg_q, 1)
         if ratio >= IMBALANCE_RATIO:
-            severity   = min((ratio - 1) / 9.0, 1.0)
+            severity   = min((ratio - 1) / 3.0, 1.0)
             worst_lane = max(approaches, key=lambda a: a.get("queue_length", 0))
             explanation = (
                 f"Junction {jid} has a demand imbalance — lane {worst_lane.get('lane_id')} "
