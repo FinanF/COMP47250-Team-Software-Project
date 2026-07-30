@@ -32,8 +32,6 @@ class MLClassifier:
         "empty_green_lane_count",
         "max_seconds_since_green",
         "approach_count",
-        "queue_imbalance_ratio",
-        "green_utilisation_rate",
     ]
 
     def __init__(self, model_path: str = "model.pkl"):
@@ -56,7 +54,7 @@ class MLClassifier:
         max_wait    = max((a.get("waiting_time_avg", 0) for a in approaches), default=0)
         green_lanes = [a for a in approaches if a.get("green") is True]
         empty_green = sum(1 for a in green_lanes if a.get("queue_length", 0) == 0)
-        max_ssg     = max((a.get("seconds_since_green", 0) for a in approaches), default=0)
+        max_ssg     = max((a.get("seconds_since_green") or 0 for a in approaches), default=0)
 
         return {
             "current_phase":            state.get("current_phase", 0),
@@ -69,8 +67,6 @@ class MLClassifier:
             "empty_green_lane_count":   empty_green,
             "max_seconds_since_green":  max_ssg,
             "approach_count":           len(approaches),
-            "queue_imbalance_ratio":    max_q / (avg_q + 0.1),
-            "green_utilisation_rate":   1 - (empty_green / (len(green_lanes) + 0.1)),
         }
 
     def predict(self, state: dict):

@@ -21,20 +21,29 @@ async def diagnostic_worker(
     Runs forever as an asyncio background task.
     Picks up traffic states, runs detection, puts events downstream.
     """
-    engine = DiagnosticEngine(ml_model=ml_model)
+    engine = DiagnosticEngine()
     print("[DiagnosticWorker] Started — waiting for traffic states...")
 
     while True:
         try:
-            # Block until a traffic state arrives from Ruhao's SUMO worker
             state = await traffic_queue.get()
 
-            # Run both detection layers
-            events = engine.analyse(state)
+            # Only process junction state messages — skip vehicle positions
+            if state.get("type") != "junction_state":
+                traffic_queue.task_done()
+                continue
+
+            all_events = []
+            for junction in state.get("junctions", []):
+                events = engine.analyse(junction)
+                all_events.extend(events)
+
+            if all_events:
+                print(f"[DiagnosticWorker] Detected {len(all_events)} events.")
 
             # Push each event downstream to Princeton's optimisation worker
-            for event in events:
-                event_dict = {
+            for event in all_events:
+                await event_queue.put({
                     "junction_id":    event.junction_id,
                     "pattern_type":   event.pattern_type,
                     "severity_score": event.severity_score,
@@ -42,8 +51,7 @@ async def diagnostic_worker(
                     "queues":         event.queues,
                     "active_phase":   event.active_phase,
                     "detected_at":    event.detected_at,
-                }
-                await event_queue.put(event_dict)
+                })
                 print(
                     f"[DiagnosticWorker] Event: {event.pattern_type} "
                     f"at {event.junction_id} (severity {event.severity_score})"
